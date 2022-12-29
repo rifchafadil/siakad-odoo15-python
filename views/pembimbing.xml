@@ -1,0 +1,140 @@
+<?xml version='1.0' encoding='utf-8'?>
+<odoo>
+    <data>
+    <!-- rifcha.pembimbing tree view -->
+    <record id="rifcha_pembimbing_view_tree" model="ir.ui.view">
+        <field name="name">rifcha.pembimbing.view.tree</field>
+        <field name="model">rifcha.pembimbing</field>
+        <field name="arch" type="xml">
+            <tree>
+                <!-- Add your fields here -->
+                <field name="name"/>
+                <field name="prodi_id"/>                
+                <field name="nip"/>                
+                <field name="email"/>                
+            </tree>
+        </field>
+    </record>
+        
+<!-- rifcha.pembimbing form view -->
+
+<!-- rifcha.pembimbing search view -->
+<record id="rifcha_pembimbing_view_search" model="ir.ui.view">
+    <field name="name">rifcha.pembimbing.view.search</field>
+    <field name="model">rifcha.pembimbing</field>
+    <field name="arch" type="xml">
+        <search string="Search Description">
+            <!-- Add your fields here -->
+            <field name="name"/>
+            <field name="prodi_id"/>                
+            <field name="nip"/>                
+            <field name="email"/>
+        </search>
+    </field>
+</record>
+
+<record id="rifcha_pembimbing_view_form" model="ir.ui.view">
+    <field name="name">rifcha.pembimbing.view.form</field>
+    <field name="model">rifcha.pembimbing</field>
+    <field name="arch" type="xml">
+        <form string="">
+            <sheet>
+                    <notebook>
+                    <page string="Dosen Pembimbing" name="pembimbing">
+                        <group>                            
+                            <field name="image" widget='image' class="oe_avatar"/>
+                            <field name="name"/>
+                            <field name="prodi_id"/>
+                            <field name="nip"/>                
+                            <field name="email"/>                
+                        </group>
+                    </page>
+                </notebook>
+            </sheet>
+        </form>
+    </field>
+</record>
+
+<record id="view_rifcha_pembimbing_kanban" model="ir.ui.view">
+            <field name="name">rifcha_pembimbing</field>
+            <field name="model">rifcha.pembimbing</field>
+            <field name="arch" type="xml">                
+                <kanban default_order="id asc">                    
+                    <field name="id"/>
+                    <field name="name"/>
+                    <field name="nip"/>
+                    <field name="email"/>                     
+                    <field name="prodi_id"/>                  
+                    <templates>
+                        <t t-name="kanban-box">            
+                            <div t-attf-class="oe_kanban_global_click">                                                                                                                                
+                                <table class="oe_kanban_table">
+                                    <tr width="300">
+                                        <td valign="center" width="70" align="left">
+                                            <div class="o_kanban_image">
+                                                <img height="70" width="80" t-att-src="kanban_image('rifcha.pembimbing', 'image', record.id.raw_value)" alt="image"/>
+                                            </div>
+                                        </td>
+                                        <td valign="top" align="left" style="padding-left:10px;">
+                                            <div class="oe_kanban_details">
+                                                <ul>
+                                                    <li>
+                                                        <h4><field name="name"/></h4>
+                                                    </li>
+                                                    <li>
+                                                        <b>NIP:</b>
+                                                        <field name="nip"/>
+                                                    </li>
+                                                    <li>
+                                                        <b>Email:</b>
+                                                        <field name="email"/>
+                                                    </li> 
+                                                    <li>
+                                                        <b>Program Studi:</b>
+                                                        <field name="prodi_id"/>
+                                                    </li>                                             
+                                                </ul>  
+                                            </div>
+                                        </td>
+                                    </tr>
+                                </table>
+                            </div>    
+                        </t>
+                    </templates>
+                </kanban>
+            </field>
+        </record>
+
+<!-- calendar if a date field exists -->
+        <!-- graph -->
+        <record id="view_rifcha_pembimbing_graph" model="ir.ui.view">
+            <field name="name">rifcha_pembimbing</field>
+            <field name="model">rifcha.pembimbing</field>
+            <field name="arch" type="xml">
+                <graph string="Data Aspek" type="bar">
+                </graph>
+            </field>
+        </record>
+
+
+
+        <!-- action window -->
+        <record id="action_rifcha_pembimbing" model="ir.actions.act_window">
+            <field name="name">Data pembimbing </field>
+            <field name="type">ir.actions.act_window</field>
+            <field name="res_model">rifcha.pembimbing</field>
+            <field name="view_mode">kanban,tree,form</field>
+            <field name="context">{"search_default_fieldname":1}</field>
+            <field name="help" type="html">
+                <p class="oe_view_nocontent_create">
+                Click to add a new pembimbing
+                </p><p>
+                Click the Create button to add a new pembimbing
+                </p>
+            </field>
+        </record>
+
+        <!-- This Menu Item must have a parent and an action -->
+        <menuitem id="menu_rifcha_pembimbing" name="Dosen Pembimbing" parent="vokasi_master" action="action_rifcha_pembimbing" sequence="120"/> 
+    </data>
+</odoo>

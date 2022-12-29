@@ -1,0 +1,84 @@
+<?xml version='1.0' encoding='utf-8'?>
+<odoo>
+    <data>
+    <!-- rifcha.matakuliah tree view -->
+    <record id="rifcha_matakuliah_view_tree" model="ir.ui.view">
+        <field name="name">rifcha.matakuliah.view.tree</field>
+        <field name="model">rifcha.matakuliah</field>
+        <field name="arch" type="xml">
+            <tree>
+                <!-- Add your fields here -->
+                <field name="kodeMK"/>     
+                <field name="name"/>
+                <field name="SKS"/>       
+            </tree>
+        </field>
+    </record>
+        
+<!-- rifcha.matakuliah form view -->
+
+<!-- rifcha.matakuliah search view -->
+<record id="rifcha_matakuliah_view_search" model="ir.ui.view">
+    <field name="name">rifcha.matakuliah.view.search</field>
+    <field name="model">rifcha.matakuliah</field>
+    <field name="arch" type="xml">
+        <search string="Search Description">
+            <!-- Add your fields here -->
+                <field name="kodeMK"/>     
+                <field name="name"/>
+                <field name="SKS"/>     
+        </search>
+    </field>
+</record>
+
+<record id="rifcha_matakuliah_view_form" model="ir.ui.view">
+    <field name="name">rifcha.matakuliah.view.form</field>
+    <field name="model">rifcha.matakuliah</field>
+    <field name="arch" type="xml">
+        <form string="">
+            <sheet>
+                <notebook>
+                    <page string="Nama matakuliah" name="name">
+                        <group>
+                            <field name="kodeMK"/>     
+                            <field name="name"/>
+                            <field name="SKS"/>     
+                        </group>
+                    </page>
+                </notebook>
+            </sheet>
+        </form>
+    </field>
+</record>
+
+<!-- calendar if a date field exists -->
+        <!-- graph -->
+        <record id="view_rifcha_matakuliah_graph" model="ir.ui.view">
+            <field name="name">rifcha_matakuliah</field>
+            <field name="model">rifcha.matakuliah</field>
+            <field name="arch" type="xml">
+                <graph string="Data Aspek" type="bar">
+                </graph>
+            </field>
+        </record>
+
+        <!-- action window -->
+        <record id="action_rifcha_matakuliah" model="ir.actions.act_window">
+            <field name="name">Data matakuliah </field>
+            <field name="type">ir.actions.act_window</field>
+            <field name="res_model">rifcha.matakuliah</field>
+            <field name="view_mode">kanban,tree,form</field>
+            <field name="context">{"search_default_fieldname":1}</field>
+            <field name="help" type="html">
+                <p class="oe_view_nocontent_create">
+                Click to add a new matakuliah
+                </p><p>
+                Click the Create button to add a new matakuliah
+                </p>
+            </field>
+        </record>
+
+        <!-- This Menu Item must have a parent and an action -->
+        <menuitem id="menu_rifcha_matakuliah" name="Mata Kuliah" parent="vokasi_master" action="action_rifcha_matakuliah" sequence="30"/> 
+    </data>
+</odoo>

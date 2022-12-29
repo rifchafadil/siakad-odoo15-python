@@ -1,0 +1,78 @@
+<?xml version='1.0' encoding='utf-8'?>
+<odoo>
+    <data>
+    <!-- rifcha.ruang tree view -->
+    <record id="rifcha_ruang_view_tree" model="ir.ui.view">
+        <field name="name">rifcha.ruang.view.tree</field>
+        <field name="model">rifcha.ruang</field>
+        <field name="arch" type="xml">
+            <tree>
+                <!-- Add your fields here -->
+                <field name="name"/>                
+            </tree>
+        </field>
+    </record>
+        
+<!-- rifcha.ruang form view -->
+
+<!-- rifcha.ruang search view -->
+<record id="rifcha_ruang_view_search" model="ir.ui.view">
+    <field name="name">rifcha.ruang.view.search</field>
+    <field name="model">rifcha.ruang</field>
+    <field name="arch" type="xml">
+        <search string="Search Description">
+            <!-- Add your fields here -->
+            <field name="name"/>
+        </search>
+    </field>
+</record>
+
+<record id="rifcha_ruang_view_form" model="ir.ui.view">
+    <field name="name">rifcha.ruang.view.form</field>
+    <field name="model">rifcha.ruang</field>
+    <field name="arch" type="xml">
+        <form string="">
+            <sheet>
+                    <notebook>
+                    <page string="Nama ruang" name="name">
+                        <group>
+                            <field name="name"/>
+                        </group>
+                    </page>
+                </notebook>
+            </sheet>
+        </form>
+    </field>
+</record>
+
+<!-- calendar if a date field exists -->
+        <!-- graph -->
+        <record id="view_rifcha_ruang_graph" model="ir.ui.view">
+            <field name="name">rifcha_ruang</field>
+            <field name="model">rifcha.ruang</field>
+            <field name="arch" type="xml">
+                <graph string="Data Aspek" type="bar">
+                </graph>
+            </field>
+        </record>
+
+        <!-- action window -->
+        <record id="action_rifcha_ruang" model="ir.actions.act_window">
+            <field name="name">Data ruang </field>
+            <field name="type">ir.actions.act_window</field>
+            <field name="res_model">rifcha.ruang</field>
+            <field name="view_mode">kanban,tree,form</field>
+            <field name="context">{"search_default_fieldname":1}</field>
+            <field name="help" type="html">
+                <p class="oe_view_nocontent_create">
+                Click to add a new ruang
+                </p><p>
+                Click the Create button to add a new ruang
+                </p>
+            </field>
+        </record>
+
+        <!-- This Menu Item must have a parent and an action -->
+        <menuitem id="menu_rifcha_ruang" name="Ruang" parent="vokasi_master" action="action_rifcha_ruang" sequence="60"/> 
+    </data>
+</odoo>

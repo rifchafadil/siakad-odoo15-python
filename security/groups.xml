@@ -1,0 +1,20 @@
+<odoo> 
+    <data> 
+        <record model="ir.module.category" id="module_category_rifcha"> 
+            <field name="name">rifcha APPS</field>
+            <field name="description">rifcha Groups</field>
+            <field name="sequence">10</field>
+        </record>
+
+        <record id="group_rifcha_user" model="res.groups"> 
+            <field name="name">User</field>
+            <field name="category_id" ref="module_category_rifcha" />
+        </record>
+    
+        <record id="group_rifcha_manager" model="res.groups"> 
+            <field name="name">Manager</field>
+            <field name="category_id" ref="module_category_rifcha" />
+            <field name="users" eval="[(4, ref('base.user_admin'))]" />
+        </record>
+    </data>
+</odoo>

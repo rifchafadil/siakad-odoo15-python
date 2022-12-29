@@ -1,0 +1,8 @@
+<odoo>
+	<data>
+		<!-- Menu Data SPMI -->
+		<menuitem id="vokasi_apps" name="Vokasi Apps" sequence="10" web_icon="rifcha,static/description/icon_prodi.png" />
+		<menuitem id="vokasi_master" name="Data Master" sequence="20" parent="vokasi_apps" />       	
+		<menuitem id="vokasi_akademik" name="Akademik" sequence="30" parent="vokasi_apps" />   
+	</data>
+</odoo>

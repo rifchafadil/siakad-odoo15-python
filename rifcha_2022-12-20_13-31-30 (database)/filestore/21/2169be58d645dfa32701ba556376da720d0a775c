@@ -1,0 +1,4799 @@
+
+/******************************************************************
+*  Filepath: /web/static/tests/legacy/helpers/test_utils_file.js  *
+*  Bundle: web.assets_tests                                       *
+*  Lines: 158                                                     *
+******************************************************************/
+odoo.define('web.test_utils_file', function () {
+"use strict";
+
+/**
+ * FILE Test Utils
+ *
+ * This module defines various utility functions to help simulate events with
+ * files, such as drag-and-drop.
+ *
+ * Note that all methods defined in this module are exported in the main
+ * testUtils file.
+ */
+
+
+//------------------------------------------------------------------------------
+// Private functions
+//------------------------------------------------------------------------------
+
+/**
+ * Create a fake object 'dataTransfer', linked to some files, which is passed to
+ * drag and drop events.
+ *
+ * @param {Object[]} files
+ * @returns {Object}
+ */
+function _createFakeDataTransfer(files) {
+    return {
+        dropEffect: 'all',
+        effectAllowed: 'all',
+        files,
+        getData: function () {
+            return files;
+        },
+        items: [],
+        types: ['Files'],
+    };
+}
+
+//------------------------------------------------------------------------------
+// Public functions
+//------------------------------------------------------------------------------
+
+/**
+ * Create a file object, which can be used for drag-and-drop.
+ *
+ * @param {Object} data
+ * @param {string} data.name
+ * @param {string} data.content
+ * @param {string} data.contentType
+ * @returns {Promise<Object>} resolved with file created
+ */
+function createFile(data) {
+    // Note: this is only supported by Chrome, and does not work in Incognito mode
+    return new Promise(function (resolve, reject) {
+        var requestFileSystem = window.requestFileSystem || window.webkitRequestFileSystem;
+        if (!requestFileSystem) {
+            throw new Error('FileSystem API is not supported');
+        }
+        requestFileSystem(window.TEMPORARY, 1024 * 1024, function (fileSystem) {
+            fileSystem.root.getFile(data.name, { create: true }, function (fileEntry) {
+                fileEntry.createWriter(function (fileWriter) {
+                    fileWriter.onwriteend = function (e) {
+                        fileSystem.root.getFile(data.name, {}, function (fileEntry) {
+                            fileEntry.file(function (file) {
+                                resolve(file);
+                            });
+                        });
+                    };
+                    fileWriter.write(new Blob([ data.content ], { type: data.contentType }));
+                });
+            });
+        });
+    });
+}
+
+/**
+ * Drag a file over a DOM element
+ *
+ * @param {$.Element} $el
+ * @param {Object} file must have been created beforehand (@see createFile)
+ */
+function dragoverFile($el, file) {
+    var ev = new Event('dragover', { bubbles: true });
+    Object.defineProperty(ev, 'dataTransfer', {
+        value: _createFakeDataTransfer(file),
+    });
+    $el[0].dispatchEvent(ev);
+}
+
+/**
+ * Drop a file on a DOM element.
+ *
+ * @param {$.Element} $el
+ * @param {Object} file must have been created beforehand (@see createFile)
+ */
+function dropFile($el, file) {
+    var ev = new Event('drop', { bubbles: true, });
+    Object.defineProperty(ev, 'dataTransfer', {
+        value: _createFakeDataTransfer([file]),
+    });
+    $el[0].dispatchEvent(ev);
+}
+
+/**
+ * Drop some files on a DOM element.
+ *
+ * @param {$.Element} $el
+ * @param {Object[]} files must have been created beforehand (@see createFile)
+ */
+function dropFiles($el, files) {
+    var ev = new Event('drop', { bubbles: true, });
+    Object.defineProperty(ev, 'dataTransfer', {
+        value: _createFakeDataTransfer(files),
+    });
+    $el[0].dispatchEvent(ev);
+}
+
+/**
+ * Set files in a file input
+ *
+ * @param {DOM.Element} el
+ * @param {Object[]} files must have been created beforehand
+ *   @see testUtils.file.createFile
+ */
+function inputFiles(el, files) {
+    // could not use _createFakeDataTransfer as el.files assignation will only
+    // work with a real FileList object.
+    const dataTransfer = new window.DataTransfer();
+    for (const file of files) {
+        dataTransfer.items.add(file);
+    }
+    el.files = dataTransfer.files;
+    /**
+     * Changing files programatically is not supposed to trigger the event but
+     * it does in Chrome versions before 73 (which is on runbot), so in that
+     * case there is no need to make a manual dispatch, because it would lead to
+     * the files being added twice.
+     */
+    const versionRaw = navigator.userAgent.match(/Chrom(e|ium)\/([0-9]+)\./);
+    const chromeVersion = versionRaw ? parseInt(versionRaw[2], 10) : false;
+    if (!chromeVersion || chromeVersion >= 73) {
+        el.dispatchEvent(new Event('change'));
+    }
+}
+
+//------------------------------------------------------------------------------
+// Exposed API
+//------------------------------------------------------------------------------
+
+return {
+    createFile: createFile,
+    dragoverFile: dragoverFile,
+    dropFile: dropFile,
+    dropFiles,
+    inputFiles,
+};
+
+});
+;
+
+/**************************************************************
+*  Filepath: /mail/static/tests/tours/discuss_public_tour.js  *
+*  Bundle: web.assets_tests                                   *
+*  Lines: 36                                                  *
+**************************************************************/
+odoo.define('@mail/../tests/tours/discuss_public_tour', async function (require) {
+'use strict';
+let __exports = {};
+/** @odoo-module **/
+
+const tour = require('web_tour.tour');
+
+tour.register('mail/static/tests/tours/discuss_public_tour.js', {
+    test: true,
+}, [{
+    trigger: '.o_DiscussPublicView',
+    extraTrigger: '.o_ThreadView',
+}, {
+    content: "Check that we are on channel page",
+    trigger: '.o_ThreadView',
+    run() {
+        if (!window.location.pathname.startsWith('/discuss/channel')) {
+            console.error('Did not automatically redirect to channel page');
+        }
+        // Wait for modules to be loaded or failed for the next step
+        odoo.__DEBUG__.didLogInfo.then(() => {
+            const { missing, failed, unloaded } = odoo.__DEBUG__.jsModules;
+            if ([missing, failed, unloaded].some(arr => arr.length)) {
+                console.error("Couldn't load all JS modules.", JSON.stringify({ missing, failed, unloaded }));
+            }
+            document.body.classList.add('o_mail_channel_public_modules_loaded');
+        });
+    },
+    extraTrigger: '.o_mail_channel_public_modules_loaded',
+}, {
+    content: "Wait for all modules loaded check in previous step",
+    trigger: '.o_mail_channel_public_modules_loaded',
+}]);
+
+return __exports;
+});
+;
+
+/*********************************************************************
+*  Filepath: /mail/static/tests/tours/mail_channel_as_guest_tour.js  *
+*  Bundle: web.assets_tests                                          *
+*  Lines: 37                                                         *
+*********************************************************************/
+odoo.define('@mail/../tests/tours/mail_channel_as_guest_tour', async function (require) {
+'use strict';
+let __exports = {};
+/** @odoo-module **/
+
+const tour = require('web_tour.tour');
+
+tour.register('mail/static/tests/tours/mail_channel_as_guest_tour.js', {
+    test: true,
+}, [{
+    content: "Click join",
+    trigger: '.o_WelcomeView_joinButton',
+    extraTrigger: '.o_ThreadView',
+}, {
+    content: "Check that we are on channel page",
+    trigger: '.o_ThreadView',
+    run() {
+        if (!window.location.pathname.startsWith('/discuss/channel')) {
+            console.error('Clicking on join button did not redirect to channel page');
+        }
+        // Wait for modules to be loaded or failed for the next step
+        odoo.__DEBUG__.didLogInfo.then(() => {
+            const { missing, failed, unloaded } = odoo.__DEBUG__.jsModules;
+            if ([missing, failed, unloaded].some(arr => arr.length)) {
+                console.error("Couldn't load all JS modules.", JSON.stringify({ missing, failed, unloaded }));
+            }
+            document.body.classList.add('o_mail_channel_as_guest_tour_modules_loaded');
+        });
+    },
+    extraTrigger: '.o_mail_channel_as_guest_tour_modules_loaded',
+}, {
+    content: "Wait for all modules loaded check in previous step",
+    trigger: '.o_mail_channel_as_guest_tour_modules_loaded',
+}]);
+
+return __exports;
+});
+;
+
+/***********************************************************************
+*  Filepath: /mail/static/tests/tours/mail_full_composer_test_tour.js  *
+*  Bundle: web.assets_tests                                            *
+*  Lines: 92                                                           *
+***********************************************************************/
+odoo.define('@mail/../tests/tours/mail_full_composer_test_tour', async function (require) {
+'use strict';
+let __exports = {};
+/** @odoo-module **/
+
+const {
+    createFile,
+    inputFiles,
+} = require('web.test_utils_file');
+
+const tour = require('web_tour.tour');
+
+/**
+ * This tour depends on data created by python test in charge of launching it.
+ * It is not intended to work when launched from interface. It is needed to test
+ * an action (action manager) which is not possible to test with QUnit.
+ * @see mail/tests/test_mail_full_composer.py
+ */
+tour.register('mail/static/tests/tours/mail_full_composer_test_tour.js', {
+    test: true,
+}, [{
+    content: "Click on Send Message",
+    trigger: '.o_ChatterTopbar_buttonSendMessage',
+}, {
+    content: "Write something in composer",
+    trigger: '.o_ComposerTextInput_textarea',
+    run: 'text blahblah',
+}, {
+    content: "Add one file in composer",
+    trigger: '.o_Composer_buttonAttachment',
+    async run() {
+        const file = await createFile({
+            content: 'hello, world',
+            contentType: 'text/plain',
+            name: 'text.txt',
+        });
+        inputFiles(
+            document.querySelector('.o_FileUploader_input'),
+            [file]
+        );
+    },
+}, {
+    content: "Open full composer",
+    trigger: '.o_Composer_buttonFullComposer',
+    extra_trigger: '.o_AttachmentCard:not(.o-isUploading)' // waiting the attachment to be uploaded
+}, {
+    content: "Check the earlier provided attachment is listed",
+    trigger: '.o_AttachmentCard[title="text.txt"]',
+    run() {},
+}, {
+    content: "Check subject is autofilled",
+    trigger: 'input[name="subject"]',
+    run() {
+        const subjectValue = document.querySelector('input[name="subject"]').value;
+        if (subjectValue !== "Re: Test User") {
+            console.error(
+                `Full composer should have "Re: Test User" in subject input (actual: ${subjectValue})`
+            );
+        }
+    },
+}, {
+    content: "Check composer content is kept",
+    trigger: '.oe_form_field[name="body"]',
+    run() {
+        const bodyContent = document.querySelector('.oe_form_field[name="body"]').textContent;
+        if (!bodyContent.includes("blahblah")) {
+            console.error(
+                `Full composer should contain text from small composer ("blahblah") in body input (actual: ${bodyContent})`
+            );
+        }
+    },
+}, {
+    content: "Open templates",
+    trigger: '.o_field_widget[name="template_id"] input',
+}, {
+    content: "Check a template is listed",
+    in_modal: false,
+    trigger: '.ui-autocomplete .ui-menu-item a:contains("Test template")',
+    run() {},
+}, {
+    content: "Send message",
+    trigger: '.o_mail_send',
+}, {
+    content: "Check message is shown",
+    trigger: '.o_Message:contains("blahblah")',
+}, {
+    content: "Check message contains the attachment",
+    trigger: '.o_Message .o_AttachmentCard_filename:contains("text.txt")',
+}]);
+
+return __exports;
+});
+;
+
+/***************************************************
+*  Filepath: /portal/static/tests/tours/portal.js  *
+*  Bundle: web.assets_tests                        *
+*  Lines: 22                                       *
+***************************************************/
+odoo.define('portal.tour', function (require) {
+'use strict';
+
+var tour = require("web_tour.tour");
+
+tour.register('portal_load_homepage', {
+    test: true,
+    url: '/my',
+},
+    [
+        {
+            content: "Check portal is loaded",
+            trigger: 'a[href*="/my/account"]:contains("Edit"):first',
+        },
+        {
+            content: "Load my account details",
+            trigger: 'input[value="Joel Willis"]'
+        }
+    ]
+);
+
+});
+;
+
+/*******************************************************************************
+*  Filepath: /account/static/tests/tours/account_dashboard_setup_bar_tests.js  *
+*  Bundle: web.assets_tests                                                    *
+*  Lines: 42                                                                   *
+*******************************************************************************/
+odoo.define('account.dashboard.setup.tour', function (require) {
+    "use strict";
+
+    var core = require('web.core');
+    var tour = require('web_tour.tour');
+
+    var _t = core._t;
+
+    tour.register('account_render_report', {
+        test: true,
+        url: '/web',
+    }, [tour.stepUtils.showAppsMenuItem(),
+    {
+        id: 'account_menu_click',
+        trigger: '.o_app[data-menu-xmlid="account.menu_finance"]',
+        position: 'bottom',
+    }, {
+        trigger: '.o_data_row:first',
+        extra_trigger: '.breadcrumb',
+    }, {
+        trigger: '.o_control_panel button:contains("' + _t('Print') + '")',
+    }, {
+        trigger: '.o_control_panel .dropdown-menu a:contains("' + _t('Invoices without Payment') + '")',
+    }, {
+        trigger: 'iframe .o_report_layout_standard h2',
+        content: 'Primary color is correct',
+        run: function () {
+            if (this.$anchor.css('color') !== "rgb(18, 52, 86)") {
+                console.error('The primary color should be the one set on the company.');
+            }
+        },
+    }, {
+        trigger: 'iframe .o_report_layout_standard #informations div strong',
+        content: 'Secondary color is correct',
+        run: function () {
+            if (this.$anchor.css('color') !== "rgb(120, 145, 1)") {
+                console.error('The secondary color should be the one set on the company.');
+            }
+        },
+    }
+        ]);
+});
+;
+
+/*************************************************************
+*  Filepath: /account/static/tests/tours/tax_group_tests.js  *
+*  Bundle: web.assets_tests                                  *
+*  Lines: 129                                                *
+*************************************************************/
+odoo.define('@account/../tests/tours/tax_group_tests', async function (require) {
+'use strict';
+let __exports = {};
+/** @odoo-module alias=account.tax.group.tour.tests */
+"use strict";
+
+const tour = require('web_tour.tour');
+
+tour.register('account_tax_group', {
+    test: true,
+    url: "/web",
+}, [tour.stepUtils.showAppsMenuItem(),
+    {
+        content: "Go to Invoicing",
+        trigger: '.o_app[data-menu-xmlid="account.menu_finance"]',
+        edition: 'community',
+    },
+    {
+        content: "Go to Accounting",
+        trigger: '.o_app[data-menu-xmlid="account_accountant.menu_accounting"]',
+        edition: 'enterprise',
+    },
+    {
+        content: "Go to Vendors",
+        trigger: 'a:contains("Vendors")',
+    },
+    {
+        content: "Go to Bills",
+        trigger: 'span:contains("Bills")',
+    },
+    {
+        extra_trigger: '.breadcrumb:contains("Bills")',
+        content: "Create new bill",
+        trigger: '.o_list_button_add',
+    },
+    // Set a vendor
+    {
+        content: "Add vendor",
+        trigger: 'div.o_field_widget.o_field_many2one[name="partner_id"] div input',
+        run: 'text Azure Interior',
+    },
+    {
+        content: "Valid vendor",
+        trigger: '.ui-menu-item a:contains("Azure Interior")',
+    },
+    // Add First product
+    {
+        content: "Add items",
+        trigger: 'div[name="invoice_line_ids"] .o_field_x2many_list_row_add a:contains("Add a line")',
+    },
+    {
+        content: "Select input",
+        trigger: 'div[name="invoice_line_ids"] .o_list_view .o_selected_row .o_list_many2one:first input',
+    },
+    {
+        content: "Type item",
+        trigger: 'div[name="invoice_line_ids"] .o_list_view .o_selected_row .o_list_many2one:first input',
+        run: "text Large Desk",
+    },
+    {
+        content: "Valid item",
+        trigger: '.ui-menu-item-wrapper:contains("Large Desk")',
+    },
+    // Save account.move
+    {
+        content: "Save the account move",
+        trigger: '.o_form_button_save',
+    },
+    // Edit account.move
+    {
+        content: "Edit the account move",
+        trigger: '.o_form_button_edit',
+    },
+    // Edit tax group amount
+    {
+        content: "Edit tax group amount",
+        trigger: '.o_tax_group_edit',
+    },
+    {
+        content: "Modify the input value",
+        trigger: '.o_tax_group_edit_input input',
+        run: function (actions) {
+            $('.o_tax_group_edit_input input').val(200);
+            $('.o_tax_group_edit_input input').select();
+            $('.o_tax_group_edit_input input').blur();
+        },
+    },
+    // Check new value for total (with modified tax_group_amount).
+    {
+        content: "Valid total amount",
+        trigger: 'span[name="amount_total"]:contains("1,499.00")',
+    },
+    // Modify the quantity of the object
+    {
+        content: "Select item quantity",
+        trigger: 'div[name="invoice_line_ids"] .o_list_view tbody tr.o_data_row .o_list_number[title="1.00"]',
+    },
+    {
+        content: "Change item quantity",
+        trigger: 'div[name="invoice_line_ids"] .o_list_view tbody tr.o_data_row .o_list_number[title="1.00"] input',
+        run: 'text 2',
+    },
+    {
+        content: "Valid the new value",
+        trigger: 'div[name="invoice_line_ids"] .o_list_view tbody tr.o_data_row .o_list_number[title="1.00"] input',
+        run: function (actions) {
+            let keydownEvent = jQuery.Event('keydown');
+            keydownEvent.which = 13;
+            this.$anchor.trigger(keydownEvent);
+        },
+    },
+    // Save form
+    {
+        content: "Save the account move",
+        trigger: '.o_form_button_save',
+    },
+    // Check new tax group value
+    {
+        content: "Check new value of tax group",
+        trigger: '.o_tax_group_amount_value:contains("389.70")',
+    },
+]);
+
+return __exports;
+});
+
+odoo.define(`account.tax.group.tour.tests`, async function(require) {
+                        return require('@account/../tests/tours/tax_group_tests')[Symbol.for("default")];
+                        });
+;
+
+/*************************************************************************
+*  Filepath: /crm/static/tests/tours/crm_email_and_phone_propagation.js  *
+*  Bundle: web.assets_tests                                              *
+*  Lines: 68                                                             *
+*************************************************************************/
+odoo.define('crm.crm_email_and_phone_propagation', function (require) {
+    'use strict';
+
+    const tour = require('web_tour.tour');
+
+    tour.register('crm_email_and_phone_propagation_edit_save', {
+        test: true,
+        url: '/web',
+    }, [
+        tour.stepUtils.showAppsMenuItem(),
+        {
+            trigger: '.o_app[data-menu-xmlid="crm.crm_menu_root"]',
+            content: 'open crm app',
+        }, {
+            trigger: '.o_kanban_record .o_kanban_record_title span:contains(Test Lead Propagation)',
+            content: 'Open the first lead',
+            run: 'click',
+        }, {
+            trigger: '.o_form_button_edit',
+            extra_trigger: '.o_lead_opportunity_form.o_form_readonly',
+            content: 'Edit the lead',
+            run: 'click',
+        }, {
+            trigger: '.o_form_button_save',
+            extra_trigger: '.o_form_editable input[name="email_from"]',
+            content: 'Save the lead',
+            run: 'click',
+        }, {
+            trigger: '.o_form_readonly',
+        },
+    ]);
+
+    tour.register('crm_email_and_phone_propagation_remove_email_and_phone', {
+        test: true,
+        url: '/web',
+    }, [
+        tour.stepUtils.showAppsMenuItem(),
+        {
+            trigger: '.o_app[data-menu-xmlid="crm.crm_menu_root"]',
+            content: 'open crm app',
+        }, {
+            trigger: '.o_kanban_record .o_kanban_record_title span:contains(Test Lead Propagation)',
+            content: 'Open the first lead',
+            run: 'click',
+        }, {
+            trigger: '.o_form_button_edit',
+            content: 'Edit the lead',
+            run: 'click',
+        }, {
+            trigger: '.o_form_editable input[name="email_from"]',
+            extra_trigger: '.o_form_editable input[name="phone"]',
+            content: 'Remove the email and the phone',
+            run: function () {
+                $('input[name="email_from"]').val('').trigger("change");
+                $('input[name="phone"]').val('').trigger("change");
+            },
+        }, {
+            trigger: '.o_form_button_save',
+            // wait the the warning message to be visible
+            extra_trigger: '.o_form_sheet_bg .fa-exclamation-triangle:not(.o_invisible_modifier)',
+            content: 'Save the lead',
+            run: 'click',
+        }, {
+            trigger: '.o_form_readonly',
+        },
+    ]);
+
+});
+;
+
+/***********************************************************
+*  Filepath: /crm/static/tests/tours/crm_forecast_tour.js  *
+*  Bundle: web.assets_tests                                *
+*  Lines: 104                                              *
+***********************************************************/
+odoo.define('@crm/../tests/tours/crm_forecast_tour', async function (require) {
+'use strict';
+let __exports = {};
+/** @odoo-module */
+const tour = require('web_tour.tour');
+const today = moment();
+
+tour.register('crm_forecast', {
+    test: true,
+    url: "/web",
+}, [
+    tour.stepUtils.showAppsMenuItem(),
+    {
+        trigger: ".o_app[data-menu-xmlid='crm.crm_menu_root']",
+        content: "open crm app",
+    }, {
+        trigger: '.dropdown-toggle[data-menu-xmlid="crm.crm_menu_report"]',
+        content: 'Open Reporting menu',
+        run: 'click',
+    }, {
+        trigger: '.dropdown-item[data-menu-xmlid="crm.crm_menu_forecast"]',
+        content: 'Open Forecast menu',
+        run: 'click',
+    }, {
+        trigger: '.o_column_quick_create:contains(Add next month)',
+        content: 'Wait page loading'
+    }, {
+        trigger: ".o-kanban-button-new",
+        content: "click create",
+        run: 'click',
+    }, {
+        trigger: "input[name=name]",
+        content: "complete name",
+        run: "text Test Opportunity 1",
+    }, {
+        trigger: "div[name=expected_revenue] > input",
+        content: "complete expected revenue",
+        run: "text 999999",
+    }, {
+        trigger: "button.o_kanban_edit",
+        content: "edit lead",
+    }, {
+        trigger: "input[name=date_deadline]",
+        content: "complete expected closing",
+        run: `text ${today.format("MM/DD/YYYY")}`,
+    }, {
+        trigger: "input[name=date_deadline]",
+        content: "click to make the datepicker disappear",
+        run: "click"
+    }, {
+        trigger: "body:not(:has(div.bootstrap-datetimepicker-widget))",
+        content: "wait for date_picker to disappear",
+        run: function () {},
+    }, {
+        trigger: '.o_back_button',
+        content: 'navigate back to the kanban view',
+        position: "bottom",
+        run: "click"
+    }, {
+        trigger: ".o_kanban_record .o_kanban_record_title:contains('Test Opportunity 1')",
+        content: "move to the next month",
+        run: function (actions) {
+            const undefined_groups = $('.o_column_title:contains("Undefined")').length;
+            actions.drag_and_drop(` .o_opportunity_kanban .o_kanban_group:eq(${1 + undefined_groups})`, this.$anchor);
+        }
+    }, {
+        trigger: ".o_kanban_record .o_kanban_record_title:contains('Test Opportunity 1')",
+        content: "edit lead",
+        run: "click"
+    }, {
+        trigger: `span[name=date_deadline]:contains("${moment(today).add(2, 'months').startOf('month').subtract(1, 'days').format("MM/DD/YYYY")}")`,
+        content: "edit datetime",
+        position: "bottom",
+        run: "click"
+    }, {
+        trigger: "input[name=date_deadline]",
+        content: "complete expected closing",
+        run: `text ${moment(today).add(5, 'months').startOf('month').subtract(1, 'days').format("MM/DD/YYYY")}`
+    }, {
+        trigger: "body:not(:has(div.bootstrap-datetimepicker-widget))",
+        content: "wait for date_picker to disappear",
+        run: function () {},
+    }, {
+        trigger: "input[name=probability]",
+        content: "max out probability",
+        run: "text 100"
+    }, {
+        trigger: '.o_back_button',
+        content: 'navigate back to the kanban view',
+        position: "bottom",
+        run: "click"
+    }, {
+        trigger: '.o_kanban_add_column',
+        content: "add next month",
+        run: "click"
+    }, {
+        trigger: ".o_kanban_record:contains('Test Opportunity 1'):contains('Won')",
+        content: "assert that the opportunity has the Won banner",
+        run: function () {},
+    }
+]);
+
+return __exports;
+});
+;
+
+/********************************************************
+*  Filepath: /crm/static/tests/tours/crm_rainbowman.js  *
+*  Bundle: web.assets_tests                             *
+*  Lines: 81                                            *
+********************************************************/
+odoo.define('@crm/../tests/tours/crm_rainbowman', async function (require) {
+'use strict';
+let __exports = {};
+/** @odoo-module **/
+
+    const tour = require('web_tour.tour');
+
+    tour.register('crm_rainbowman', {
+        test: true,
+        url: "/web",
+    }, [
+        tour.stepUtils.showAppsMenuItem(),
+        {
+            trigger: ".o_app[data-menu-xmlid='crm.crm_menu_root']",
+            content: "open crm app",
+        }, {
+            trigger: ".o-kanban-button-new",
+            content: "click create",
+        }, {
+            trigger: "input[name=name]",
+            content: "complete name",
+            run: "text Test Lead 1",
+        }, {
+            trigger: "div[name=expected_revenue] > input",
+            content: "complete expected revenue",
+            run: "text 999999997",
+        }, {
+            trigger: "button.o_kanban_add",
+            content: "create lead",
+        }, {
+            trigger: ".o_kanban_record .o_kanban_record_title:contains('Test Lead 1')",
+            content: "move to won stage",
+            run: "drag_and_drop .o_opportunity_kanban .o_kanban_group:eq(3) "
+        }, {
+            trigger: ".o_reward_rainbow",
+            extra_trigger: ".o_reward_rainbow",
+            run: function () {} // check rainbowman is properly displayed
+        }, {
+            trigger: ".o-kanban-button-new",
+            content: "create second lead",
+        }, {
+            trigger: "input[name=name]",
+            content: "complete name",
+            run: "text Test Lead 2",
+        }, {
+            trigger: "div[name=expected_revenue] > input",
+            content: "complete expected revenue",
+            run: "text 999999998",
+        }, {
+            trigger: "button.o_kanban_add",
+            content: "create lead",
+        }, {
+            trigger: ".o_kanban_record .o_kanban_record_title:contains('Test Lead 2')",
+            run: function () {} // wait for the record to be properly created
+        }, {
+            // move first test back to new stage to be able to test rainbowman a second time
+            trigger: ".o_kanban_record .o_kanban_record_title:contains('Test Lead 1')",
+            content: "move back to new stage",
+            run: "drag_and_drop .o_opportunity_kanban .o_kanban_group:eq(0) "
+        }, {
+            trigger: ".o_kanban_record .o_kanban_record_title:contains('Test Lead 2')",
+            content: "click on second lead",
+        }, {
+            trigger: ".o_statusbar_status button[data-value='4']",
+            content: "move lead to won stage",
+        }, {
+            trigger: ".o_statusbar_status button[data-value='1']",
+            extra_trigger: ".o_reward_rainbow",
+            content: "move lead to previous stage & rainbowman appears",
+        }, {
+            trigger: "button[name=action_set_won_rainbowman]",
+            content: "click button mark won",
+        }, {
+            trigger: ".o_menu_brand",
+            extra_trigger: ".o_reward_rainbow",
+            content: "last rainbowman appears",
+        }
+    ]);
+
+return __exports;
+});
+;
+
+/**************************************************************
+*  Filepath: /website/static/tests/tours/automatic_editor.js  *
+*  Bundle: web.assets_tests                                   *
+*  Lines: 95                                                  *
+**************************************************************/
+odoo.define('website.tour.automatic_editor', function (require) {
+'use strict';
+
+const tour = require('web_tour.tour');
+
+tour.register('automatic_editor_on_new_website', {
+    test: true,
+    url: '/',
+},
+[
+    {
+        content: "Select the language dropdown",
+        trigger: '.js_language_selector .dropdown-toggle'
+    },
+    {
+        content: "click on Add a language",
+        trigger: 'a.o_add_language',
+    },
+    {
+        content: "Select dropdown",
+        trigger: 'select[name=lang]',
+        run: () => {
+            $('select[name="lang"]').val('"pa_GB"').change();
+        }
+    },
+    {
+        content: "load parseltongue",
+        extra_trigger: '.modal select[name="lang"]:propValueContains(pa_GB)',
+        trigger: '.modal-footer button:first',
+    },
+    {
+        content: "Select the language dropdown",
+        trigger: '.js_language_selector .dropdown-toggle',
+    },
+    {
+        content: "Select parseltongue",
+        trigger: 'a.js_change_lang[data-url_code=pa_GB]',
+    },
+    {
+        content: "Check that we're on parseltongue and then go to settings",
+        trigger: 'html[lang=pa-GB]',
+        run: () => {
+            // Now go through the settings for a new website. A frontend_lang
+            // cookie was set during previous steps. It should not be used when
+            // redirecting to the frontend in the following steps.
+            window.location.href = '/web#action=website.action_website_configuration';
+        }
+    },
+    {
+        content: "create a new website",
+        trigger: 'button[name="action_website_create_new"]',
+    },
+    {
+        content: "insert website name",
+        trigger: 'input[name="name"]',
+        run: 'text Website EN'
+    },
+    {
+        content: "validate the website creation modal",
+        trigger: 'button.btn-primary'
+    },
+    {
+        content: "skip configurator",
+        // This trigger targets the skip button, it doesn't have a more
+        // explicit class or ID.
+        trigger: '.o_configurator_container .container-fluid .btn.btn-link'
+    },
+    {
+        content: "make hover button appear",
+        trigger: '.o_theme_preview',
+        run: () => {
+            $('.o_theme_preview .o_button_area').attr('style', 'visibility: visible; opacity: 1;');
+        },
+    },
+    {
+        content: "Install a theme",
+        trigger: 'button[data-name="button_choose_theme"]'
+    },
+    {
+        content: "Check that the editor is loaded",
+        trigger: 'body.editor_enable',
+        timeout: 30000,
+        run: () => null, // it's a check
+    },
+    {
+        content: "exit edit mode",
+        trigger: '.o_we_website_top_actions button.btn-primary:contains("Save")',
+    },
+    {
+        content: "wait for editor to close",
+        trigger: 'body:not(.editor_enable)',
+        run: () => null, // It's a check
+    }
+]);
+});
+;
+
+/**********************************************************************
+*  Filepath: /website/static/tests/tours/carousel_content_removal.js  *
+*  Bundle: web.assets_tests                                           *
+*  Lines: 34                                                          *
+**********************************************************************/
+odoo.define('@website/../tests/tours/carousel_content_removal', async function (require) {
+'use strict';
+let __exports = {};
+/** @odoo-module */
+
+const tour = require('web_tour.tour');
+
+tour.register("carousel_content_removal", {
+    test: true,
+    url: "/",
+}, [{
+    trigger: "a[data-action=edit]",
+    content: "Click the Edit button.",
+    extra_trigger: ".homepage",
+}, {
+    trigger: "#snippet_structure .oe_snippet:has(span:contains('Carousel')) .oe_snippet_thumbnail",
+    content: "Drag the Carousel block and drop it in your page.",
+    run: "drag_and_drop #wrap",
+},
+{
+    trigger: ".carousel .carousel-item.active .carousel-content",
+    content: "Select the active carousel item.",
+}, {
+    trigger: ".oe_overlay.oe_active .oe_snippet_remove",
+    content: "Remove the active carousel item.",
+},
+{
+    trigger: ".carousel .carousel-item.active .container:not(:has(*))",
+    content: "Check for a carousel slide with an empty container tag",
+    run: function () {},
+}]);
+
+return __exports;
+});
+;
+
+/********************************************************************
+*  Filepath: /website/static/tests/tours/conditional_visibility.js  *
+*  Bundle: web.assets_tests                                         *
+*  Lines: 82                                                        *
+********************************************************************/
+odoo.define('@website/../tests/tours/conditional_visibility', async function (require) {
+'use strict';
+let __exports = {};
+/** @odoo-module */
+
+const tour = require('web_tour.tour');
+const wTourUtils = require('website.tour_utils');
+
+const snippets = [
+    {
+        id: 's_text_image',
+        name: 'Text - Image',
+    },
+];
+tour.register('conditional_visibility_1', {
+    test: true,
+    url: '/',
+},
+[{
+    content: "enter edit mode",
+    trigger: 'a[data-action=edit]',
+},
+wTourUtils.dragNDrop(snippets[0]),
+wTourUtils.clickOnSnippet(snippets[0]),
+wTourUtils.changeOption('ConditionalVisibility', 'we-toggler'),
+{
+    content: 'click on conditional visibility',
+    trigger: '[data-name="visibility_conditional"]',
+    run: 'click',
+},
+{
+    content: 'click on utm medium toggler',
+    trigger: '[data-save-attribute="visibilityValueUtmMedium"] we-toggler',
+    run: 'click',
+},
+{
+    trigger: '[data-save-attribute="visibilityValueUtmMedium"] we-selection-items [data-add-record="Email"]',
+    content: 'click on Email',
+    run: 'click',
+},
+...wTourUtils.clickOnSave(),
+{
+    content: 'Check if the rule was applied',
+    trigger: 'body:not(.editor_enable) #wrap',
+    run: function (actions) {
+        const style = window.getComputedStyle(this.$anchor[0].getElementsByClassName('s_text_image')[0]);
+        if (style.display !== 'none') {
+            console.error('error This item should be invisible and only visible if utm_medium === email');
+        }
+    },
+},
+wTourUtils.clickOnEdit(),
+{
+    content: 'Check if the element is visible as it should always be visible in edit view',
+    trigger: 'body.editor_enable #wrap .s_text_image',
+    run: function (actions) {
+        const style = window.getComputedStyle((this.$anchor[0]));
+        if (style.display === 'none') {
+            console.error('error This item should now be visible because utm_medium === email');
+        }
+    },
+},
+]);
+
+tour.register('conditional_visibility_2', {
+    test: true,
+    url: '/?utm_medium=Email',
+},
+[{
+    content: 'The content previously hidden should now be visible',
+    trigger: 'body #wrap',
+    run: function (actions) {
+        const style = window.getComputedStyle(this.$anchor[0].getElementsByClassName('s_text_image')[0]);
+        if (style.display === 'none') {
+            console.error('error This item should now be visible because utm_medium === email');
+        }
+    },
+},
+]);
+
+return __exports;
+});
+;
+
+/**********************************************************************
+*  Filepath: /website/static/tests/tours/configurator_translation.js  *
+*  Bundle: web.assets_tests                                           *
+*  Lines: 68                                                          *
+**********************************************************************/
+odoo.define('@website/../tests/tours/configurator_translation', async function (require) {
+'use strict';
+let __exports = {};
+/** @odoo-module */
+
+const tour = require('web_tour.tour');
+
+tour.register('configurator_translation', {
+    test: true,
+    url: '/website/configurator',
+},
+[
+    // Configurator first screen
+    {
+        content: "click next",
+        trigger: 'button.o_configurator_show',
+    },
+    // Description screen
+    {
+        content: "select a website type",
+        trigger: 'a.o_change_website_type',
+    }, {
+        content: "insert a website industry",
+        trigger: '.o_configurator_industry input',
+        run: 'text ab',
+    }, {
+        content: "select a website industry from the autocomplete",
+        trigger: '.o_configurator_industry ul li a:contains(in fr)',
+        extra_trigger: 'html[lang*=fr]',
+    }, {
+        content: "select an objective",
+        trigger: '.o_configurator_purpose_dd a',
+    }, {
+        content: "choose from the objective list",
+        trigger: 'a.o_change_website_purpose',
+    },
+    // Palette screen
+    {
+        content: "chose a palette card",
+        trigger: '.palette_card',
+    },
+    // Features screen
+    {
+        content: "select confidentialité",
+        trigger: '.card:contains(confidentialité)',
+    }, {
+        content: "Click on build my website",
+        trigger: 'button.btn-primary',
+    }, {
+        content: "Loader should be shown",
+        trigger: '.o_theme_install_loader_container',
+        run: function () {}, // it's a check
+    }, {
+        content: "Wait untill the configurator is finished",
+        trigger: 'body.editor_started',
+        timeout: 30000,
+    }, {
+        content: "exit edit mode",
+        trigger: '.o_we_website_top_actions button.btn-primary:contains("Sauver")',
+    }, {
+         content: "wait for editor to be closed",
+         trigger: 'body:not(.editor_enable)',
+         run: function () {}, // It's a check.
+    }
+]);
+
+return __exports;
+});
+;
+
+/************************************************************
+*  Filepath: /website/static/tests/tours/dashboard_tour.js  *
+*  Bundle: web.assets_tests                                 *
+*  Lines: 31                                                *
+************************************************************/
+odoo.define("website.tour.backend_dashboard", function (require) {
+  "use strict";
+
+  var tour = require("web_tour.tour");
+
+  tour.register(
+    "backend_dashboard",
+    {
+      test: true,
+      url: "/web",
+    },
+    [
+      tour.stepUtils.showAppsMenuItem(),
+      {
+        trigger: '.o_app[data-menu-xmlid="website.menu_website_configuration"]',
+      },
+      {
+        trigger: 'button[data-menu-xmlid="website.menu_dashboard"]',
+      },
+      {
+        trigger: '.dropdown-item[data-menu-xmlid="website.menu_website_google_analytics"]',
+      },
+      {
+        // Visits section should always be present even when empty / not hooked to anything
+        trigger: 'h2:contains("Visits")',
+        content: "Check if dashboard loads",
+        run: function () {},
+      },
+    ]
+  );
+});
+;
+
+/*******************************************************************************
+*  Filepath: /website/static/tests/tours/default_shape_gets_palette_colors.js  *
+*  Bundle: web.assets_tests                                                    *
+*  Lines: 31                                                                   *
+*******************************************************************************/
+odoo.define("website.tour.default_shape_gets_palette_colors", function (require) {
+"use strict";
+
+var tour = require("web_tour.tour");
+const wTourUtils = require('website.tour_utils');
+
+tour.register("default_shape_gets_palette_colors", {
+    test: true,
+    url: "/?enable_editor=1",
+}, [
+    wTourUtils.dragNDrop({
+        id: 's_text_image',
+        name: 'Text - Image',
+    }),
+    wTourUtils.clickOnSnippet({
+        id: 's_text_image',
+        name: 'Text - Image',
+    }),
+    wTourUtils.changeOption('ColoredLevelBackground', 'Shape'),
+    {
+        content: "Check that shape does not have a background-image in its inline style",
+        trigger: '#wrap .s_text_image .o_we_shape',
+        run: () => {
+            const shape = $('#wrap .s_text_image .o_we_shape')[0];
+            if (shape.style.backgroundImage) {
+                console.error("error The default shape has a background-image in its inline style (should rely on the class)");
+            }
+        },
+    },
+]);
+});
+;
+
+/***************************************************************
+*  Filepath: /website/static/tests/tours/edit_link_popover.js  *
+*  Bundle: web.assets_tests                                    *
+*  Lines: 215                                                  *
+***************************************************************/
+odoo.define("website.tour.edit_link_popover", function (require) {
+"use strict";
+
+const tour = require('web_tour.tour');
+const wTourUtils = require('website.tour_utils');
+
+const FIRST_PARAGRAPH = '#wrap .s_text_image p:nth-child(2)';
+
+const clickFooter = [{
+    content: "Save the link by clicking outside the URL input (not on a link element)",
+    trigger: 'footer h5:first',
+}, {
+    content: "Wait delayed click on footer",
+    trigger: '.o_we_customize_panel we-title:contains("Footer")',
+    run: function () {}, // it's a check
+}];
+
+const clickEditLink = [{
+    content: "Click on Edit Link in Popover",
+    trigger: '.o_edit_menu_popover .o_we_edit_link',
+    // FIXME this run shouldnt be needed but click not working as real click
+    run: (actions) => {
+        actions.click();
+        $('.o_edit_menu_popover').popover('hide');
+    },
+}, {
+    content: "Ensure popover is closed",
+    trigger: 'html:not(:has(.o_edit_menu_popover))', // popover should be closed
+    run: function () {}, // it's a check
+    in_modal: false,
+}];
+
+tour.register('edit_link_popover', {
+    test: true,
+    url: '/?enable_editor=1',
+}, [
+    // 1. Test links in page content (web_editor)
+    wTourUtils.dragNDrop({
+        id: 's_text_image',
+        name: 'Text - Image',
+    }),
+    {
+        content: "Click on a paragraph",
+        trigger: FIRST_PARAGRAPH,
+    },
+    {
+        content: "Click on 'Link' to open Link Dialog",
+        trigger: "#toolbar #create-link",
+    },
+    {
+        content: "Type the link URL /contactus",
+        trigger: '#o_link_dialog_url_input',
+        run: 'text /contactus'
+    },
+    ...clickFooter,
+    {
+        content: "Click on newly created link",
+        trigger: `${FIRST_PARAGRAPH} a`,
+    },
+    {
+        content: "Popover should be shown",
+        trigger: '.o_edit_menu_popover .o_we_url_link:contains("Contact Us")', // At this point preview is loaded
+        run: function () {}, // it's a check
+    },
+    ...clickEditLink,
+    {
+        content: "Type the link URL /",
+        trigger: '#o_link_dialog_url_input',
+        run: "text /"
+    },
+    ...clickFooter,
+    {
+        content: "Click on link",
+        trigger: `${FIRST_PARAGRAPH} a`,
+        // FIXME this run shouldnt be needed but click not working as real click
+        run: function (actions) {
+            actions.click();
+            this.$anchor.popover('show');
+        },
+    },
+    {
+        content: "Popover should be shown with updated preview data",
+        trigger: '.o_edit_menu_popover .o_we_url_link:contains("Home")',
+        run: function () {}, // it's a check
+    },
+    {
+        content: "Click on Remove Link in Popover",
+        trigger: '.o_edit_menu_popover .o_we_remove_link',
+    },
+    {
+        content: "Link should be removed",
+        trigger: `${FIRST_PARAGRAPH}:not(:has(a))`,
+        // run: function () {}, // it's a check
+        // FIXME this run shouldnt be needed but click not working as real click
+        run: (actions) => {
+            $('.o_edit_menu_popover').popover('hide');
+        },
+    },
+    {
+        content: "Ensure popover is closed",
+        trigger: 'html:not(:has(.o_edit_menu_popover))', // popover should be closed
+        run: function () {}, // it's a check
+    },
+    // 2. Test links in navbar (website)
+    {
+        content: "Click navbar menu Home",
+        trigger: '#top_menu a:contains("Home")',
+    },
+    {
+        content: "Popover should be shown (2)",
+        trigger: '.o_edit_menu_popover .o_we_url_link:contains("Home")',
+        run: function () {}, // it's a check
+    },
+    ...clickEditLink,
+    {
+        content: "Change the URL",
+        trigger: '#o_link_dialog_url_input',
+        run: "text /contactus"
+    },
+    {
+        content: "Save the Link Dialog modal",
+        trigger: '.modal-footer .btn-primary',
+    },
+    {
+        content: "Click on the Home menu again",
+        extra_trigger: '#top_menu a:contains("Home")[href="/contactus"]', // href should be changed
+        trigger: '#top_menu a:contains("Home")',
+        // FIXME this run shouldnt be needed but click not working as real click
+        run: function (actions) {
+            actions.click();
+            this.$anchor.popover('show');
+        },
+    },
+    {
+        content: "Popover should be shown with updated preview data (2)",
+        trigger: '.o_edit_menu_popover .o_we_url_link:contains("Contact Us")',
+        run: function () {}, // it's a check
+    },
+    {
+        content: "Click on Edit Menu in Popover",
+        trigger: '.o_edit_menu_popover .js_edit_menu',
+    },
+    {
+        content: "Edit Menu (tree) should open",
+        trigger: '.js_add_menu',
+        run: function () {}, // it's a check
+    },
+    {
+        content: "Close modal",
+        trigger: '.modal-footer .btn-secondary',
+    },
+    // 3. Test other links (CTA in navbar & links in footer)
+    {
+        content: "Click CTA in navbar",
+        trigger: '#top_menu_container a.btn-primary[href="/contactus"]',
+    },
+    {
+        content: "Popover should be shown (3)",
+        trigger: '.o_edit_menu_popover .o_we_url_link:contains("Contact Us")',
+        run: function () {}, // it's a check
+    },
+    {
+        content: "Toolbar should be shown (3)",
+        trigger: '#toolbar:has(#o_link_dialog_url_input:propValue(/contactus))',
+        run: function () {}, // it's a check
+    },
+    {
+        content: "Click 'Home' link in footer",
+        trigger: 'footer a[href="/"]',
+    },
+    {
+        content: "Popover should be shown (4)",
+        trigger: '.o_edit_menu_popover .o_we_url_link:contains("Home")',
+        run: function () {}, // it's a check
+    },
+    {
+        content: "Toolbar should be shown (4)",
+        trigger: '#toolbar:has(#o_link_dialog_url_input:propValue(/))',
+        run: function () {}, // it's a check
+    },
+    // 4. Popover should close when clicking non-link element
+    ...clickFooter,
+    // FIXME this step shouldnt be needed but click not working as real click
+    {
+        content: "REMOVEME",
+        trigger: 'html', // Do not block if popover already hidden
+        run: (actions) => {
+            $('.o_edit_menu_popover').popover('hide');
+        },
+    },
+    // 5. Double click should not open popover but should open toolbar link
+    {
+        content: "Double click on link",
+        extra_trigger: 'html:not(:has(.o_edit_menu_popover))', // popover should be closed
+        trigger: 'footer a[href="/"]',
+        run: function (actions) {
+            // Create range to simulate real double click, see pull request
+            const range = document.createRange();
+            range.selectNodeContents(this.$anchor[0]);
+            const sel = window.getSelection();
+            sel.removeAllRanges();
+            sel.addRange(range);
+            actions.click();
+            actions.dblclick();
+            // FIXME this step shouldnt be needed but click not working as real click
+            this.$anchor.popover('show');
+        },
+    },
+    {
+        content: "Ensure popover is opened on double click, and so is right panel edit link",
+        trigger: 'html:has(#o_link_dialog_url_input):has(.o_edit_menu_popover)',
+        run: function () {}, // it's a check
+    },
+]);
+});
+;
+
+/***********************************************************
+*  Filepath: /website/static/tests/tours/edit_megamenu.js  *
+*  Bundle: web.assets_tests                                *
+*  Lines: 82                                               *
+***********************************************************/
+odoo.define("website.tour.edit_megamenu", function (require) {
+"use strict";
+
+const tour = require('web_tour.tour');
+const wTourUtils = require('website.tour_utils');
+
+const toggleMegaMenu = (stepOptions) => Object.assign({}, {
+    content: "Toggles the mega menu.",
+    trigger: '#top_menu .nav-item a.o_mega_menu_toggle',
+    run: function () {
+        // If the mega menu is displayed inside the extra menu items, it should
+        // already be displayed.
+        if (!this.$anchor[0].closest('.o_extra_menu_items')) {
+            this.$anchor.click();
+        }
+    },
+}, stepOptions);
+
+tour.register('edit_megamenu', {
+    test: true,
+    url: '/?enable_editor=1',
+}, [
+    // Add a megamenu item to the top menu.
+    {
+        content: "Click on a menu item",
+        trigger: '#top_menu .nav-item a',
+    },
+    {
+        content: "Click on 'Link' to open Link Dialog",
+        trigger: '.o_edit_menu_popover a.js_edit_menu',
+    },
+    {
+        content: "Trigger the link dialog (click 'Add Mega Menu Item')",
+        extra_trigger: '.o_web_editor_dialog:visible',
+        trigger: '.modal-body a.js_add_menu[data-type="mega"]',
+    },
+    {
+        content: "Write a label for the new menu item",
+        extra_trigger: '.o_link_dialog',
+        trigger: '.o_link_dialog #o_link_dialog_label_input',
+        run: 'text Megaaaaa!'
+    },
+    {
+        content: "Save the new menu item",
+        trigger: '.modal-dialog .btn-primary span:contains("Save")',
+        run: 'click',
+    },
+    {
+        content: "Save the changes to the menu",
+        trigger: '.modal-dialog .btn-primary span:contains("Save")',
+        run: 'click',
+    },
+    // Edit a menu item
+    wTourUtils.clickOnEdit(),
+    wTourUtils.clickOnExtraMenuItem({extra_trigger: '#oe_snippets.o_loaded'}),
+    toggleMegaMenu({extra_trigger: '#top_menu .nav-item a.o_mega_menu_toggle:contains("Megaaaaa!")'}),
+    {
+        content: "Clicks on the first title item.",
+        trigger: '.o_mega_menu h4',
+    },
+    {
+        content: "Press enter.",
+        trigger: '.o_mega_menu h4',
+        run: function (actions) {
+            this.$anchor[0].dispatchEvent(new window.InputEvent('input', {bubbles: true, inputType: 'insertParagraph'}));
+        },
+    },
+    {
+        content: "The menu should still be visible. Edit a menu item.",
+        trigger: '.o_mega_menu h4',
+        run: 'text New Menu Item',
+    },
+    ...wTourUtils.clickOnSave(),
+    wTourUtils.clickOnExtraMenuItem({extra_trigger: 'a[data-action=edit]'}),
+    toggleMegaMenu(),
+    {
+        content: "The menu item should have been renamed.",
+        trigger: '.o_mega_menu h4:contains("New Menu Item")',
+        run: function () {}, // it's a check
+    },
+]);
+});
+;
+
+/********************************************************
+*  Filepath: /website/static/tests/tours/edit_menus.js  *
+*  Bundle: web.assets_tests                             *
+*  Lines: 134                                           *
+********************************************************/
+odoo.define('@website/../tests/tours/edit_menus', async function (require) {
+'use strict';
+let __exports = {};
+/** @odoo-module */
+
+const wTourUtils = require('website.tour_utils');
+const tour = require('web_tour.tour');
+
+const clickOnSave = {
+   content: "Clicks on the menu edition dialog save button",
+   trigger: '.modal-dialog .btn-primary span:contains("Save")',
+};
+
+tour.register('edit_menus', {
+    test: true,
+    url: '/',
+}, [
+    // Add a megamenu item from the menu.
+    {
+        content: "Open Pages menu",
+        trigger: '.o_menu_sections a:contains("Pages")',
+    },
+    {
+        content: "Click on Edit Menu",
+        trigger: 'a.dropdown-item:contains("Edit Menu")',
+    },
+    {
+        content: "Trigger the link dialog (click 'Add Mega Menu Item')",
+        extra_trigger: '.o_web_editor_dialog:visible',
+        trigger: '.modal-body a.js_add_menu[data-type="mega"]',
+    },
+    {
+        content: "Write a label for the new menu item",
+        extra_trigger: '.o_link_dialog',
+        trigger: '.o_link_dialog #o_link_dialog_label_input',
+        run: 'text Megaaaaa!'
+    },
+    clickOnSave,
+    {
+        content: "Click save and wait for the page to be reloaded",
+        trigger: '.modal-dialog .btn-primary span:contains("Save")',
+    },
+    wTourUtils.clickOnExtraMenuItem({extra_trigger: 'body:not(.o_wait_reload)'}),
+    {
+        content: "There should be a new megamenu item.",
+        trigger: '#top_menu .nav-item a.o_mega_menu_toggle:contains("Megaaaaa!")',
+        run: () => {}, // It's a check.
+    },
+    // Add a menu item in edit mode.
+    wTourUtils.clickOnEdit(),
+    {
+        content: "Click on a menu item",
+        trigger: '#top_menu .nav-item a',
+        extra_trigger: '#oe_snippets.o_loaded',
+    },
+    {
+        content: "Click on Edit Menu",
+        trigger: '.o_edit_menu_popover a.js_edit_menu',
+    },
+    {
+        content: "Trigger the link dialog (click 'Add Menu Item')",
+        extra_trigger: '.o_web_editor_dialog:visible',
+        trigger: '.modal-body a.js_add_menu',
+    },
+    clickOnSave,
+    {
+        content: "It didn't save without a label. Fill label input.",
+        extra_trigger: '.o_link_dialog',
+        trigger: '.o_link_dialog #o_link_dialog_label_input',
+        run: 'text Random!',
+    },
+    clickOnSave,
+    {
+        content: "It didn't save without a url. Fill url input.",
+        extra_trigger: '.o_link_dialog',
+        trigger: '.o_link_dialog #o_link_dialog_url_input',
+        run: 'text #',
+    },
+    clickOnSave,
+    clickOnSave,
+    wTourUtils.clickOnEdit(),
+    // Edit the new menu item from the "edit link" popover button
+    wTourUtils.clickOnExtraMenuItem({extra_trigger: '#oe_snippets.o_loaded'}),
+    {
+        content: "Menu should have a new link item",
+        trigger: '#top_menu .nav-item a:contains("Random!")',
+    },
+    {
+        content: "Click on Edit Link",
+        trigger: '.o_edit_menu_popover a.o_we_edit_link',
+    },
+    {
+        content: "Change the label",
+        trigger: '.o_link_dialog #o_link_dialog_label_input',
+        run: 'text Modnar',
+    },
+    clickOnSave,
+    ...wTourUtils.clickOnSave(),
+    // Edit the menu item from the "edit menu" popover button
+    wTourUtils.clickOnEdit(),
+    wTourUtils.clickOnExtraMenuItem({extra_trigger: '#oe_snippets.o_loaded'}),
+    {
+        content: "Label should have changed",
+        trigger: '#top_menu .nav-item a:contains("Modnar")',
+    },
+    {
+        content: "Click on the popover Edit Menu button",
+        trigger: '.o_edit_menu_popover a.js_edit_menu',
+    },
+    {
+        content: "Click on the dialog Edit Menu button",
+        trigger: '.oe_menu_editor .js_menu_label:contains("Modnar")',
+        run: function () {
+            const liEl = this.$anchor[0].closest('[data-menu-id]');
+            liEl.querySelector('button.js_edit_menu').click();
+        },
+    },
+    {
+        content: "Change the label",
+        trigger: '.o_link_dialog #o_link_dialog_label_input',
+        run: 'text Modnar !!',
+    },
+    clickOnSave,
+    clickOnSave,
+    wTourUtils.clickOnExtraMenuItem({extra_trigger: 'a[data-action=edit]'}),
+    {
+        content: "Label should have changed",
+        trigger: '#top_menu .nav-item a:contains("Modnar !!")',
+        run: () => {}, // It's a check.
+    },
+]);
+
+return __exports;
+});
+;
+
+/******************************************************************
+*  Filepath: /website/static/tests/tours/edit_translated_page.js  *
+*  Bundle: web.assets_tests                                       *
+*  Lines: 38                                                      *
+******************************************************************/
+odoo.define('@website/../tests/tours/edit_translated_page', async function (require) {
+'use strict';
+let __exports = {};
+/** @odoo-module **/
+
+const tour = require("web_tour.tour");
+
+tour.register('edit_translated_page_redirect', {
+    test: true,
+    url: '/nl/contactus',
+}, [
+    {
+        content: 'click edit master',
+        trigger: 'a[data-action="edit_master"]',
+    },
+    {
+        content: 'check editor dashboard',
+        trigger: '#oe_snippets.o_loaded',
+        run: () => {
+            // After checking the presence of the editor dashboard, we visit a
+            // translated version of the homepage. The homepage is a special
+            // case (there is no trailing slash), so we test it separately.
+            location.href = '/nl';
+        },
+    },
+    {
+        content: 'click edit master',
+        trigger: 'a[data-action="edit_master"]',
+    },
+    {
+        content: 'check editor dashboard',
+        trigger: '#oe_snippets.o_loaded',
+        run: () => {},
+    },
+]);
+
+return __exports;
+});
+;
+
+/*****************************************************************
+*  Filepath: /website/static/tests/tours/focus_blur_snippets.js  *
+*  Bundle: web.assets_tests                                      *
+*  Lines: 81                                                     *
+*****************************************************************/
+odoo.define('website.tour.focus_blur_snippets', function (require) {
+'use strict';
+
+const ajax = require('web.ajax');
+const tour = require('web_tour.tour');
+
+const blockIDToData = {
+    parent: {
+        selector: '.s_focusblur',
+        name: 'section',
+        overlayIndex: 2,
+    },
+    child1: {
+        selector: '.s_focusblur_child1',
+        name: 'first child',
+        overlayIndex: 1,
+    },
+    child2: {
+        selector: '.s_focusblur_child2',
+        name: 'second child',
+        overlayIndex: 0,
+    },
+};
+
+function clickAndCheck(blockID, expected) {
+    const blockData = blockIDToData[blockID] || {};
+
+    return [{
+        content: blockID ? `Enable the ${blockData.name}` : 'Disable all blocks',
+        trigger: blockData.selector || '#wrapwrap',
+    }, {
+        content: 'Once the related overlays are enabled/disabled, check that the focus/blur calls have been correct.',
+        trigger: blockID
+            ? `.oe_overlay.ui-draggable:eq(${blockData.overlayIndex}).oe_active`
+            : `#oe_manipulators:not(:has(.oe_active))`,
+        run: function (actions) {
+            const result = window.focusBlurSnippetsResult;
+            window.focusBlurSnippetsResult = [];
+
+            if (expected.length !== result.length
+                    || !expected.every((item, i) => item === result[i])) {
+                console.error(`
+                    Expected: ${expected.toString()}
+                    Result: ${result.toString()}
+                `);
+            }
+        },
+    }];
+}
+
+window.focusBlurSnippetsResult = [];
+
+tour.register('focus_blur_snippets', {
+    url: '/?enable_editor=1',
+}, [
+    {
+        content: 'First load our custom JS options',
+        trigger: 'body',
+        run: function () {
+            ajax.loadJS('/website/static/tests/tour_utils/focus_blur_snippets_options.js').then(function () {
+                $('body').addClass('focus_blur_snippets_options_loaded');
+            });
+        },
+    },
+    {
+        content: 'Drag the custom block into the page',
+        trigger: '#snippet_structure .oe_snippet:has(.oe_snippet_body.s_focusblur) .oe_snippet_thumbnail',
+        extra_trigger: 'body.focus_blur_snippets_options_loaded',
+        run: 'drag_and_drop #wrap',
+    },
+    ...clickAndCheck('parent', ['focus parent']),
+    ...clickAndCheck(null, ['blur parent']),
+    ...clickAndCheck('child1', ['focus parent', 'focus child1']),
+    ...clickAndCheck('child1', []),
+    ...clickAndCheck(null, ['blur parent', 'blur child1']),
+    ...clickAndCheck('parent', ['focus parent']),
+    ...clickAndCheck('child1', ['blur parent', 'focus parent', 'focus child1']),
+    ...clickAndCheck('child2', ['blur parent', 'blur child1', 'focus parent', 'focus child2']),
+    ...clickAndCheck('parent', ['blur parent', 'blur child2', 'focus parent']),
+]);
+});
+;
+
+/*********************************************************
+*  Filepath: /website/static/tests/tours/html_editor.js  *
+*  Bundle: web.assets_tests                              *
+*  Lines: 241                                            *
+*********************************************************/
+/* global ace */
+odoo.define('website.test.html_editor', function (require) {
+'use strict';
+
+var tour = require('web_tour.tour');
+
+const adminCssModif = '#wrap {display: none;}';
+const demoCssModif = '// demo_edition';
+
+tour.register('html_editor_multiple_templates', {
+    test: true,
+    url: '/generic',
+},
+    [
+        // 1. Edit the page through Edit Mode, it will COW the view
+        {
+            content: "enter edit mode",
+            trigger: 'a[data-action=edit]',
+        },
+        {
+            content: "drop a snippet",
+            trigger: '#oe_snippets .oe_snippet:has(.s_cover) .oe_snippet_thumbnail',
+            // id starting by 'oe_structure..' will actually create an inherited view
+            run: "drag_and_drop #oe_structure_test_ui",
+        },
+        {
+            content: "save the page",
+            extra_trigger: '#oe_structure_test_ui.o_dirty',
+            trigger: "button[data-action=save]",
+        },
+        // 2. Edit generic view
+        {
+            content: "open customize menu",
+            extra_trigger: "body:not(.editor_enable)",
+            trigger: '#customize-menu > a',
+        },
+        {
+            content: "open html editor",
+            trigger: '#html_editor',
+        },
+        {
+            content: "add something in the generic view",
+            trigger: 'div.ace_line .ace_xml:contains("Generic")',
+            run: function () {
+                ace.edit('ace-view-editor').getSession().insert({row: 3, column: 1}, '<p>somenewcontent</p>\n');
+            },
+        },
+        // 3. Edit oe_structure specific view
+        {
+            content: "select oe_structure specific view",
+            trigger: 'div.ace_line .ace_xml:contains("somenewcontent")',
+            run: function () {
+                var viewId = $('#ace-view-list option:contains("oe_structure_test_ui")').val();
+                $('#ace-view-list').val(viewId).trigger('change');
+            },
+        },
+        {
+            content: "add something in the oe_structure specific view",
+            extra_trigger: '#ace-view-id:contains("test.generic_view_oe_structure_test_ui")', // If no xml_id it should show key
+            trigger: 'div.ace_line .ace_xml:contains("s_cover")',
+            run: function () {
+                ace.edit('ace-view-editor').getSession().insert({row: 2, column: 1}, '<p>anothernewcontent</p>\n');
+            },
+        },
+        {
+            content: "save the html editor",
+            extra_trigger: 'div.ace_line .ace_xml:contains("anothernewcontent")',
+            trigger: ".o_ace_view_editor button[data-action=save]",
+        },
+        {
+           content: "check that the page has both modification",
+           extra_trigger: '#wrapwrap:contains("anothernewcontent")',
+           trigger: '#wrapwrap:contains("somenewcontent")',
+           run: function () {}, // it's a check
+       },
+    ]
+);
+
+tour.register('test_html_editor_scss', {
+    test: true,
+    url: '/contactus',
+},
+    [
+        // 1. Open Html Editor and select a scss file
+        {
+            content: "open customize menu",
+            extra_trigger: '#wrap:visible', // ensure state for later
+            trigger: '#customize-menu > a',
+        },
+        {
+            content: "open html editor",
+            trigger: '#html_editor',
+        },
+        {
+            content: "open type switcher",
+            trigger: '.o_ace_type_switcher button',
+        },
+        {
+            content: "select scss files",
+            trigger: '.o_ace_type_switcher_choice[data-type="scss"]',
+        },
+        {
+            content: "select 'user_custom_rules'",
+            trigger: 'body:has(#ace-scss-list option:contains("user_custom_rules"))',
+            run: function () {
+                var scssId = $('#ace-scss-list option:contains("user_custom_rules")').val();
+                $('#ace-scss-list').val(scssId).trigger('change');
+            },
+        },
+        // 2. Edit that file and ensure it was saved then reset it
+        {
+            content: "add some scss content in the file",
+            trigger: 'div.ace_line .ace_comment:contains("footer {")',
+            run: function () {
+                ace.edit('ace-view-editor').getSession().insert({row: 2, column: 0}, `${adminCssModif}\n`);
+            },
+        },
+        {
+            content: "save the html editor",
+            extra_trigger: `div.ace_line:contains("${adminCssModif}")`,
+            trigger: ".o_ace_view_editor button[data-action=save]",
+        },
+         {
+            content: "check that the scss modification got applied",
+            trigger: 'body:has(#wrap:hidden)',
+            run: function () {}, // it's a check
+            timeout: 30000, // SCSS compilation might take some time
+        },
+        {
+            content: "reset view (after reload, html editor should have been reopened where it was)",
+            trigger: '#ace-view-id button[data-action="reset"]',
+        },
+        {
+            content: "confirm reset warning",
+            trigger: '.modal-footer .btn-primary',
+        },
+        {
+            content: "check that the scss file was reset correctly, wrap content should now be visible again",
+            trigger: '#wrap:visible',
+            run: function () {}, // it's a check
+            timeout: 30000, // SCSS compilation might take some time
+        },
+        // 3. Customize again that file (will be used in second part of the test
+        //    to ensure restricted user can still use the HTML Editor)
+        {
+            content: "add some scss content in the file",
+            trigger: 'div.ace_line .ace_comment:contains("footer {")',
+            run: function () {
+                ace.edit('ace-view-editor').getSession().insert({row: 2, column: 0}, `${adminCssModif}\n`);
+            },
+        },
+        {
+            content: "save the html editor",
+            extra_trigger: `div.ace_line:contains("${adminCssModif}")`,
+            trigger: '.o_ace_view_editor button[data-action=save]',
+        },
+        {
+            content: "check that the scss modification got applied",
+            trigger: 'body:has(#wrap:hidden)',
+            run: function () {
+                window.location.href = '/web/session/logout?redirect=/web/login';
+            },
+            timeout: 30000, // SCSS compilation might take some time
+        },
+
+        // This part of the test ensures that a restricted user can still use
+        // the HTML Editor if someone else made a customization previously.
+
+        {
+            content: "Submit login",
+            trigger: '.oe_login_form',
+            run: function () {
+                $('.oe_login_form input[name="login"]').val("demo");
+                $('.oe_login_form input[name="password"]').val("demo");
+                $('.oe_login_form input[name="redirect"]').val("/");
+                $('.oe_login_form').submit();
+            },
+        },
+        // 4. Open Html Editor and select a scss file
+        {
+            content: "open customize menu",
+            trigger: '#customize-menu > a',
+        },
+        {
+            content: "open html editor",
+            trigger: '#html_editor',
+        },
+        {
+            content: "open type switcher",
+            trigger: '.o_ace_type_switcher button',
+        },
+        {
+            content: "select scss files",
+            trigger: '.o_ace_type_switcher_choice[data-type="scss"]',
+        },
+        {
+            content: "select 'user_custom_rules'",
+            trigger: 'body:has(#ace-scss-list option:contains("user_custom_rules"))',
+            run: function () {
+                var scssId = $('#ace-scss-list option:contains("user_custom_rules")').val();
+                $('#ace-scss-list').val(scssId).trigger('change');
+            },
+        },
+        // 5. Edit that file and ensure it was saved then reset it
+        {
+            content: "add some scss content in the file",
+            trigger: `div.ace_line:contains("${adminCssModif}")`, // ensure the admin modification is here
+            run: function () {
+                ace.edit('ace-view-editor').getSession().insert({row: 2, column: 0}, `${demoCssModif}\n`);
+            },
+        },
+        {
+            content: "save the html editor",
+            extra_trigger: `div.ace_line:contains("${demoCssModif}")`,
+            trigger: ".o_ace_view_editor button[data-action=save]",
+        },
+        {
+            content: "wait for reload",
+            trigger: "body:not(:has(div.o_ace_view_editor))",
+            run: function () {}, // it's a check
+            timeout: 30000, // SCSS compilation might take some time
+        },
+        {
+            content: "reset view (after reload, html editor should have been reopened where it was)",
+            trigger: '#ace-view-id button[data-action="reset"]',
+        },
+        {
+            content: "confirm reset warning",
+            trigger: '.modal-footer .btn-primary',
+        },
+        {
+            content: "check that the scss file was reset correctly",
+            extra_trigger: `body:not(:has(div.ace_line:contains("${adminCssModif}")))`,
+            trigger: `body:not(:has(div.ace_line:contains("${demoCssModif}")))`,
+            run: function () {}, // it's a check
+            timeout: 30000, // SCSS compilation might take some time
+        },
+    ]
+);
+
+});
+;
+
+/********************************************************
+*  Filepath: /website/static/tests/tours/link_tools.js  *
+*  Bundle: web.assets_tests                             *
+*  Lines: 126                                           *
+********************************************************/
+odoo.define('@website/../tests/tours/link_tools', async function (require) {
+'use strict';
+let __exports = {};
+/** @odoo-module */
+
+const tour = require('web_tour.tour');
+const wTourUtils = require('website.tour_utils');
+
+const clickOnImgStep = {
+    content: "Click somewhere else to save.",
+    trigger: '#wrap .s_text_image img',
+};
+
+tour.register('link_tools', {
+    test: true,
+    url: '/?enable_editor=1',
+}, [
+    // 1. Create a new link from scratch.
+    wTourUtils.dragNDrop({
+        id: 's_text_image',
+        name: 'Text - Image',
+    }),
+    {
+        content: "Replace first paragraph, to insert a new link",
+        trigger: '#wrap .s_text_image p',
+        run: 'text Go to odoo: '
+    },
+    {
+        content: "Open link tools",
+        trigger: "#toolbar #create-link",
+    },
+    {
+        content: "Type the link URL odoo.com",
+        trigger: '#o_link_dialog_url_input',
+        run: 'text odoo.com'
+    },
+    clickOnImgStep,
+    // 2. Edit the link with the link tools.
+    {
+        content: "Click on the newly created link, change content to odoo website",
+        trigger: '.s_text_image a[href="http://odoo.com"]:contains("odoo.com")',
+        run: 'text odoo website',
+    },
+    {
+        content: "Link tools, should be open, change the url",
+        trigger: '#o_link_dialog_url_input',
+        run: 'text odoo.be'
+    },
+    clickOnImgStep,
+    ...wTourUtils.clickOnSave(),
+    // 3. Edit a link after saving the page.
+    wTourUtils.clickOnEdit(),
+    {
+        content: "The new link content should be odoo website and url odoo.be",
+        extra_trigger: "#oe_snippets.o_loaded",
+        trigger: '.s_text_image a[href="http://odoo.be"]:contains("odoo website")',
+    },
+    {
+        content: "The new link content should be odoo website and url odoo.be",
+        trigger: '#toolbar button[data-original-title="Link Style"]',
+    },
+    {
+        trigger: 'body',
+        run: () => {
+            // When doing automated testing, the link popover takes time to
+            // hide. While hidding, the editor observer is unactive in order to
+            // prevent the popover mutation to be recorded. In a manual
+            // scenario, the popover has plenty of time to be hidden and the
+            // obsever would be re-activated in time. As this problem arise only
+            // in test, we activate the observer here for the popover.
+            $('#wrapwrap').data('wysiwyg').odooEditor.observerActive('hide.bs.popover');
+        },
+    },
+    {
+        content: "Click on the secondary style button.",
+        trigger: '#toolbar we-button[data-value="secondary"]',
+    },
+    ...wTourUtils.clickOnSave(),
+    {
+        content: "The link should have the secondary button style.",
+        trigger: '.s_text_image a.btn.btn-secondary[href="http://odoo.be"]:contains("odoo website")',
+        run: () => {}, // It's a check.
+    },
+    // 4. Add link on image.
+    wTourUtils.clickOnEdit(),
+    {
+        content: "Click on image.",
+        trigger: '.s_text_image img',
+        extra_trigger: '#oe_snippets.o_loaded',
+    },
+    {
+        content: "Activate link.",
+        trigger: '.o_we_customize_panel we-row:contains("Media") we-button.fa-link',
+    },
+    {
+        content: "Set URL.",
+        trigger: '.o_we_customize_panel we-input:contains("Your URL") input',
+        run: 'text odoo.com',
+    },
+    {
+        content: "Deselect image.",
+        trigger: '.s_text_image p',
+    },
+    {
+        content: "Re-select image.",
+        trigger: '.s_text_image img',
+    },
+    {
+        content: "Check that link tools appear.",
+        trigger: '.popover div a:contains("http://odoo.com")',
+        run: () => {}, // It's a check.
+    },
+    // 5. Remove link from image.
+    {
+        content: "Remove link.",
+        trigger: '.popover:contains("http://odoo.com") a .fa-chain-broken',
+    },
+    {
+        content: "Check that image is not within a link anymore.",
+        trigger: '.s_text_image div > img',
+        run: () => {}, // It's a check.
+    },
+]);
+
+return __exports;
+});
+;
+
+/**********************************************************
+*  Filepath: /website/static/tests/tours/media_dialog.js  *
+*  Bundle: web.assets_tests                               *
+*  Lines: 30                                              *
+**********************************************************/
+odoo.define('@website/../tests/tours/media_dialog', async function (require) {
+'use strict';
+let __exports = {};
+/** @odoo-module */
+
+const tour = require('web_tour.tour');
+const wTourUtils = require('website.tour_utils');
+
+tour.register('website_media_dialog_undraw', {
+    test: true,
+    url: '/',
+}, [
+{
+    trigger: 'a[data-action=edit]',
+},
+wTourUtils.dragNDrop({
+    id: 's_text_image',
+    name: 'Text - Image',
+}),
+{
+    trigger: '.s_text_image img',
+    run: "dblclick",
+},
+{
+    trigger: '.o_select_media_dialog:has(.o_we_search_select option[value="media-library"])',
+},
+]);
+
+return __exports;
+});
+;
+
+/****************************************************************
+*  Filepath: /website/static/tests/tours/public_user_editor.js  *
+*  Bundle: web.assets_tests                                     *
+*  Lines: 31                                                    *
+****************************************************************/
+odoo.define('website.tour.public_user_editor_dep_widget', function (require) {
+'use strict';
+
+const publicWidget = require('web.public.widget');
+const wysiwygLoader = require('web_editor.loader');
+
+publicWidget.registry['public_user_editor_test'] = publicWidget.Widget.extend({
+    selector: 'textarea.o_public_user_editor_test_textarea',
+
+    /**
+     * @override
+     */
+    start: async function () {
+        await this._super(...arguments);
+        await wysiwygLoader.loadFromTextarea(this, this.el, {});
+    },
+});
+});
+
+odoo.define('website.tour.public_user_editor', function (require) {
+'use strict';
+
+const tour = require('web_tour.tour');
+
+tour.register('public_user_editor', {
+    test: true,
+}, [{
+    trigger: '.note-editable',
+    run: function () {}, // Simple check
+}]);
+});
+;
+
+/************************************************************
+*  Filepath: /website/static/tests/tours/reset_password.js  *
+*  Bundle: web.assets_tests                                 *
+*  Lines: 30                                                *
+************************************************************/
+odoo.define('website.tour_reset_password', function (require) {
+'use strict';
+
+var tour = require('web_tour.tour');
+require('web.dom_ready');
+
+tour.register('website_reset_password', {
+    test: true,
+}, [
+    {
+        content: "fill new password",
+        trigger: '.oe_reset_password_form input[name="password"]',
+        run: "text adminadmin"
+    },
+    {
+        content: "fill confirm password",
+        trigger: '.oe_reset_password_form input[name="confirm_password"]',
+        run: "text adminadmin"
+    },
+    {
+        content: "submit reset password form",
+        trigger: '.oe_reset_password_form button[type="submit"]',
+    },
+    {
+        content: "check that we're logged in",
+        trigger: '.oe_topbar_name:contains("The King")',
+        run: function () {}
+    },
+]);
+});
+;
+
+/***************************************************************
+*  Filepath: /website/static/tests/tours/restricted_editor.js  *
+*  Bundle: web.assets_tests                                    *
+*  Lines: 17                                                   *
+***************************************************************/
+odoo.define("website.tour.restricted_editor", function (require) {
+"use strict";
+
+var tour = require("web_tour.tour");
+
+tour.register("restricted_editor", {
+    test: true,
+    url: "/",
+}, [{
+    trigger: 'a[data-action=edit]',
+    content: "Click \"EDIT\" button of website as Restricted Editor",
+    extra_trigger: ".homepage",
+}, {
+    trigger: '#oe_snippets.o_loaded',
+    content: "Check that the snippets loaded properly",
+}]);
+});
+;
+
+/*************************************************
+*  Filepath: /website/static/tests/tours/rte.js  *
+*  Bundle: web.assets_tests                      *
+*  Lines: 218                                    *
+*************************************************/
+odoo.define('website.tour.rte', function (require) {
+'use strict';
+
+var ajax = require('web.ajax');
+var session = require('web.session');
+var tour = require('web_tour.tour');
+
+var domReady = new Promise(function (resolve) {
+    $(resolve);
+});
+var ready = Promise.all([domReady, session.is_bound, ajax.loadXML()]);
+
+tour.register('rte_translator', {
+    test: true,
+    url: '/',
+    wait_for: ready,
+}, [{
+    content: "click language dropdown",
+    trigger: '.js_language_selector .dropdown-toggle',
+}, {
+    content: "click on Add a language",
+    trigger: 'a.o_add_language',
+}, {
+    content: "select Parseltongue",
+    trigger: 'select[name="lang"]',
+    run: 'text "pa_GB"',
+}, {
+    content: "load Parseltongue",
+    trigger: '.modal-footer button:first',
+    extra_trigger: '.modal select[name="lang"]:propValueContains(pa_GB)',
+}, {
+    content: "click language dropdown (2)",
+    trigger: '.js_language_selector .dropdown-toggle',
+    timeout: 60000,
+}, {
+    content: "go to english version",
+    trigger: '.js_language_selector a[data-url_code="en"]',
+    extra_trigger: 'html[lang*="pa-GB"]',
+}, {
+    content: "Open new page menu",
+    trigger: "body:has(#o_new_content_menu_choices.o_hidden) #new-content-menu > a",
+    extra_trigger: 'a[data-action="edit"]',
+    consumeVisibleOnly: true,
+}, {
+    content: "click on new page",
+    trigger: 'a[data-action="new_page"]',
+}, {
+    content: "insert page name",
+    trigger: '#editor_new_page input[type="text"]',
+    run: 'text rte_translator',
+}, {
+    content: "create page",
+    trigger: 'button.btn-continue',
+    extra_trigger: 'input[type="text"]:propValue(rte_translator)',
+}, {
+    content: "drop a snippet",
+    trigger: "#snippet_structure .oe_snippet:eq(1) .oe_snippet_thumbnail",
+    run: 'drag_and_drop #wrap',
+}, {
+    content: "change content",
+    trigger: '#wrap',
+    run: function () {
+        $("#wrap p:first").replaceWith('<p>Write one or <font style="background-color: yellow;">two paragraphs <b>describing</b></font> your product or\
+                <font style="color: rgb(255, 0, 0);">services</font>. To be successful your content needs to be\
+                useful to your <a href="/999">readers</a>.</p> <input placeholder="test translate placeholder"/>\
+                <p>&lt;b&gt;&lt;/b&gt; is an HTML&nbsp;tag &amp; is empty</p>');
+        $("#wrap img").attr("title", "test translate image title");
+    }
+}, {
+    content: "save",
+    trigger: 'button[data-action=save]',
+    extra_trigger: '#wrap p:first b',
+}, {
+    content: "click language dropdown (3)",
+    trigger: '.js_language_selector .dropdown-toggle',
+    extra_trigger: 'body:not(.o_wait_reload):not(:has(.note-editor)) a[data-action="edit"]',
+}, {
+    content: "click on Parseltongue version",
+    trigger: '.js_language_selector a[data-url_code="pa_GB"]',
+    extra_trigger: 'html[lang*="en"]:not(:has(button[data-action=save]))',
+}, {
+    content: "translate",
+    trigger: 'html:not(:has(#wrap p span)) .o_menu_systray a[data-action="translate"]',
+}, {
+    content: "close modal",
+    trigger: '.modal-footer .btn-secondary',
+}, {
+    content: "check if translation is activate",
+    trigger: '[data-oe-translation-id]',
+}, {
+    content: "translate text",
+    extra_trigger: '.editor_started',
+    trigger: '#wrap p font:first',
+    run: function (actionHelper) {
+        actionHelper.text('translated Parseltongue text');
+        const Wysiwyg = odoo.__DEBUG__.services['web_editor.wysiwyg'];
+        Wysiwyg.setRange(this.$anchor.contents()[0], 22);
+        this.$anchor.trigger($.Event("keyup", {key: '_', keyCode: 95}));
+        this.$anchor.trigger('input');
+    },
+}, {
+    content: "translate text with special char",
+    trigger: '#wrap input + p span:first',
+    run: function (actionHelper) {
+        actionHelper.click();
+        this.$anchor.prepend('&lt;{translated}&gt;');
+        const Wysiwyg = odoo.__DEBUG__.services['web_editor.wysiwyg'];
+        Wysiwyg.setRange(this.$anchor.contents()[0], 0);
+        this.$anchor.trigger($.Event("keyup", {key: '_', keyCode: 95}));
+        this.$anchor.trigger('input');
+    },
+}, {
+    content: "click on input",
+    trigger: '#wrap input:first',
+    extra_trigger: '#wrap .o_dirty font:first:contains(translated Parseltongue text)',
+    run: 'click',
+}, {
+    content: "translate placeholder",
+    trigger: 'input:first',
+    run: 'text test Parseltongue placeholder',
+}, {
+    content: "close modal",
+    trigger: '.modal-footer .btn-primary',
+    extra_trigger: '.modal input:propValue(test Parseltongue placeholder)',
+}, {
+    content: "save translation",
+    trigger: 'button[data-action=save]',
+}, {
+    content: "check: content is translated",
+    trigger: '#wrap p font:first:contains(translated Parseltongue text)',
+    extra_trigger: 'body:not(.o_wait_reload):not(:has(.note-editor)) a[data-action="edit_master"]',
+    run: function () {}, // it's a check
+}, {
+    content: "check: content with special char is translated",
+    trigger: "#wrap input + p:contains(<{translated}><b></b> is an HTML\xa0tag & )",
+    run: function () {}, // it's a check
+
+}, {
+    content: "check: placeholder translation",
+    trigger: 'input[placeholder="test Parseltongue placeholder"]',
+    run: function () {}, // it's a check
+
+}, {
+    content: "open language selector",
+    trigger: '.js_language_selector button:first',
+    extra_trigger: 'html[lang*="pa-GB"]:not(:has(#wrap p span))',
+}, {
+    content: "return to english version",
+    trigger: '.js_language_selector a[data-url_code="en"]',
+}, {
+    content: "edit english version",
+    trigger: 'a[data-action=edit]',
+    extra_trigger: 'body:not(:has(#wrap p font:first:containsExact(paragraphs <b>describing</b>)))',
+}, {
+    content: "select text",
+    extra_trigger: '#oe_snippets.o_loaded',
+    trigger: '#wrap p',
+    run: function (actionHelper) {
+        actionHelper.click();
+        var el = this.$anchor[0];
+        var mousedown = document.createEvent('MouseEvents');
+        mousedown.initMouseEvent('mousedown', true, true, window, 0, 0, 0, 0, 0, false, false, false, false, 0, el);
+        el.dispatchEvent(mousedown);
+        var mouseup = document.createEvent('MouseEvents');
+        const Wysiwyg = odoo.__DEBUG__.services['web_editor.wysiwyg'];
+        Wysiwyg.setRange(el.childNodes[2], 6, el.childNodes[2], 13);
+        mouseup.initMouseEvent('mouseup', true, true, window, 0, 0, 0, 0, 0, false, false, false, false, 0, el);
+        el.dispatchEvent(mouseup);
+    },
+// This is disabled for now because it reveals a bug that is fixed in saas-15.1
+// and considered a tradeoff in 15.0. The bug concerns the invalidation of
+// translations when inserting tags with more than one character. Whereas <u>
+// didn't trigger an invalidation, <span style="text-decoration-line: underline;">
+// does.
+// }, {
+//     content: "underline",
+//     trigger: '.oe-toolbar #underline',
+}, {
+    content: "save new change",
+    trigger: 'button[data-action=save]',
+    // See comment above.
+    // extra_trigger: '#wrap.o_dirty p span[style*="text-decoration-line: underline;"]',
+}, {
+    content: "click language dropdown (4)",
+    trigger: '.js_language_selector .dropdown-toggle',
+    extra_trigger: 'body:not(.o_wait_reload):not(:has(.note-editor)) a[data-action="edit"]',
+}, {
+    content: "return in Parseltongue",
+    trigger: 'html[lang="en-US"] .js_language_selector .js_change_lang[data-url_code="pa_GB"]',
+}, {
+    content: "check bis: content is translated",
+    trigger: '#wrap p font:first:contains(translated Parseltongue text)',
+    extra_trigger: 'html[lang*="pa-GB"] body:not(:has(button[data-action=save]))',
+}, {
+    content: "check bis: placeholder translation",
+    trigger: 'input[placeholder="test Parseltongue placeholder"]',
+}, {
+    content: "Open customize menu",
+    trigger: "#customize-menu > .dropdown-toggle",
+}, {
+    content: "Open HTML editor",
+    trigger: "[data-action='ace']",
+}, {
+    content: "Check that the editor is not showing translated content (1)",
+    trigger: '.ace_text-layer .ace_line:contains("an HTML")',
+    run: function (actions) {
+        var lineEscapedText = $(this.$anchor.text()).text();
+        if (lineEscapedText !== "&lt;b&gt;&lt;/b&gt; is an HTML&nbsp;tag &amp; is empty") {
+            console.error('The HTML editor should display the correct untranslated content');
+            $('body').addClass('rte_translator_error');
+        }
+    },
+}, {
+    content: "Check that the editor is not showing translated content (2)",
+    trigger: 'body:not(.rte_translator_error)',
+    run: function () {},
+}]);
+});
+;
+
+/************************************************************************
+*  Filepath: /website/static/tests/tours/snippet_background_edition.js  *
+*  Bundle: web.assets_tests                                             *
+*  Lines: 368                                                           *
+************************************************************************/
+odoo.define('@website/../tests/tours/snippet_background_edition', async function (require) {
+'use strict';
+let __exports = {};
+/** @odoo-module */
+
+const tour = require('web_tour.tour');
+const weUtils = require('web_editor.utils');
+const wTourUtils = require('website.tour_utils');
+
+const snippets = [
+    {
+        id: 's_text_image',
+        name: 'Text - Image',
+    },
+];
+const gradients = [
+    'linear-gradient(135deg, rgb(203, 94, 238) 0%, rgb(75, 225, 236) 100%)',
+    'linear-gradient(135deg, rgb(255, 222, 202) 0%, rgb(202, 115, 69) 100%)',
+];
+
+function typeToName(xType) {
+    return xType === 'cc' ? 'color combinations' : xType === 'bg' ? 'background colors' : 'gradients';
+}
+
+function switchTo(type, _name) {
+    const target = type === 'cc' ? 'color-combinations' : type === 'bg' ? 'custom-colors' : 'gradients';
+    const name = _name || typeToName(type);
+    return {
+        trigger: `.o_we_colorpicker_switch_pane_btn[data-target="${target}"]`,
+        content: `Switch to ${name}`,
+    };
+}
+
+function addCheck(steps, checkX, checkNoX, xType, noSwitch = false) {
+    if (!checkX && !checkNoX) {
+        return;
+    }
+
+    const name = typeToName(xType);
+    const selectorCheckX = checkX && `.o_we_color_btn[data-color="${checkX}"].selected`;
+    const selectorCheckNoX = checkNoX && `.o_we_color_btn[data-color="${checkNoX}"]:not(.selected)`;
+    const step = {
+        trigger: selectorCheckX || selectorCheckNoX,
+        content: `The correct ${name} is marked as selected`,
+        position: 'bottom',
+        run: () => null,
+    };
+    if (!selectorCheckX && selectorCheckNoX) {
+        step.extra_trigger = selectorCheckNoX;
+    }
+
+    if (!noSwitch) {
+        steps.push(switchTo(xType, name));
+    }
+    steps.push(step);
+}
+
+function checkAndUpdateBackgroundColor({
+    checkCC, checkNoCC,
+    checkBg, checkNoBg,
+    checkGradient, checkNoGradient,
+    changeType, change,
+    finalSelector, finalRun
+}) {
+    const steps = [
+        wTourUtils.changeBackgroundColor(),
+    ];
+
+    addCheck(steps, checkCC, checkNoCC, 'cc', true);
+    addCheck(steps, checkBg, checkNoBg, 'bg');
+    addCheck(steps, checkGradient, checkNoGradient, 'gradient');
+
+    if (changeType) {
+        steps.push(switchTo(changeType));
+        steps.push(wTourUtils.changeOption('ColoredLevelBackground', `.o_we_color_btn[data-color="${change}"]`));
+        steps.push({
+            trigger: finalSelector,
+            content: "The selected colors have been applied (CC AND (BG or GRADIENT))",
+            position: 'bottom',
+            run: finalRun,
+        });
+    }
+
+    return steps;
+}
+
+function updateAndCheckCustomGradient({updateStep, checkGradient}) {
+    const steps = [updateStep, {
+        trigger: `#wrapwrap section.${snippets[0].id}.o_cc1`,
+        content: 'Color combination 1 still selected',
+        run: () => null,
+    }];
+    addCheck(steps, checkGradient, checkGradient !== gradients[0] && gradients[0], 'gradient', true);
+    return steps;
+}
+
+tour.register('snippet_background_edition', {
+    test: true,
+    url: '/?enable_editor=1',
+},
+[
+wTourUtils.dragNDrop(snippets[0]),
+wTourUtils.clickOnSnippet(snippets[0]),
+
+// Add a color combination
+...checkAndUpdateBackgroundColor({
+    changeType: 'cc',
+    change: 3,
+    finalSelector: `.${snippets[0].id}.o_cc.o_cc3:not([class*=bg-]):not([style*="background"])`,
+}),
+
+// Change the color combination + Check the previous one was marked as selected
+...checkAndUpdateBackgroundColor({
+    checkCC: 3,
+    changeType: 'cc',
+    change: 2,
+    finalSelector: `.${snippets[0].id}.o_cc.o_cc2:not(.o_cc3):not([class*=bg-])`,
+}),
+
+// Check the color combination was marked as selected + Edit the bg color
+...checkAndUpdateBackgroundColor({
+    checkCC: 2,
+    checkNoCC: 3,
+    changeType: 'bg',
+    change: 'black-50',
+    finalSelector: `.${snippets[0].id}.o_cc.o_cc2.bg-black-50`,
+}),
+
+// Check the current color palette selection + Change the bg color
+...checkAndUpdateBackgroundColor({
+    checkCC: 2,
+    checkBg: 'black-50',
+    changeType: 'bg',
+    change: '800',
+    finalSelector: `.${snippets[0].id}.o_cc.o_cc2.bg-800:not(.bg-black-50)`,
+}),
+
+// Check the current color palette selection + Change the color combination
+// again. It should keep the bg color class.
+...checkAndUpdateBackgroundColor({
+    checkCC: 2,
+    checkBg: '800',
+    checkNoBg: 'black-50',
+    changeType: 'cc',
+    change: 4,
+    finalSelector: `.${snippets[0].id}.o_cc.o_cc4:not(.o_cc2).bg-800`,
+}),
+
+// Check the current color palette status + Replace the bg color by a gradient
+...checkAndUpdateBackgroundColor({
+    checkCC: 4,
+    checkNoCC: 2,
+    checkBg: '800',
+    changeType: 'gradient',
+    change: gradients[0],
+    finalSelector: `.${snippets[0].id}.o_cc.o_cc4:not(.bg-800)[style*="background-image: ${gradients[0]}"]`,
+}),
+
+// Check the current color palette status + Replace the gradient
+...checkAndUpdateBackgroundColor({
+    checkCC: 4,
+    checkNoBg: '800',
+    checkGradient: gradients[0],
+    changeType: 'gradient',
+    change: gradients[1],
+    finalSelector: `.${snippets[0].id}.o_cc.o_cc4[style*="background-image: ${gradients[1]}"]:not([style*="background-image: ${gradients[0]}"])`,
+}),
+
+// Check the current color palette selection + Change the color combination
+// again. It should keep the gradient.
+...checkAndUpdateBackgroundColor({
+    checkCC: 4,
+    checkGradient: gradients[1],
+    checkNoGradient: gradients[0],
+    changeType: 'cc',
+    change: 1,
+    finalSelector: `.${snippets[0].id}.o_cc.o_cc1:not(.o_cc4)[style*="background-image: ${gradients[1]}"]`,
+}),
+
+// Final check of the color status in the color palette
+...checkAndUpdateBackgroundColor({
+    checkCC: 1,
+    checkNoCC: 4,
+    checkGradient: gradients[1],
+}),
+
+// Now, add an image on top of that color combination + gradient
+wTourUtils.changeOption('ColoredLevelBackground', '[data-name="bg_image_toggle_opt"]'),
+{
+    trigger: '.o_existing_attachment_cell img',
+    content: "Select an image in the media dialog",
+},
+{
+    trigger: `.${snippets[0].id}.o_cc.o_cc1`,
+    run: function () {
+        const parts = weUtils.backgroundImageCssToParts(this.$anchor.css('background-image'));
+        if (!parts.url || !parts.url.startsWith('url(')) {
+            console.error('An image should have been added as background.');
+        }
+        if (parts.gradient !== gradients[1]) {
+            console.error('The gradient should have been kept when adding the background image');
+        }
+    },
+},
+
+// Replace the gradient while there is a background-image
+...checkAndUpdateBackgroundColor({
+    checkCC: 1,
+    checkGradient: gradients[1],
+    changeType: 'gradient',
+    change: gradients[0],
+    finalSelector: `.${snippets[0].id}.o_cc.o_cc1:not([style*="${gradients[1]}"])`,
+    finalRun: function () {
+        const parts = weUtils.backgroundImageCssToParts(this.$anchor.css('background-image'));
+        if (!parts.url || !parts.url.startsWith('url(')) {
+            console.error('The image should have been kept when changing the gradient');
+        }
+        if (parts.gradient !== gradients[0]) {
+            console.error('The gradient should have been changed');
+        }
+    },
+}),
+
+// Customize gradient
+wTourUtils.changeBackgroundColor(),
+switchTo('gradient'),
+// Avoid navigating across tabs to maintain current editor state
+// Step colors
+...updateAndCheckCustomGradient({
+    updateStep: {
+        trigger: '.colorpicker .o_custom_gradient_scale',
+        content: 'Add step',
+        run: 'click',
+    },
+    checkGradient: 'linear-gradient(135deg, rgb(203, 94, 238) 0%, rgb(203, 94, 238) 0%, rgb(75, 225, 236) 100%)',
+}),
+...updateAndCheckCustomGradient({
+    updateStep: {
+        trigger: '.colorpicker .o_slider_multi input.active',
+        content: 'Move step',
+        run: () => {
+            const slider = $('.colorpicker .o_slider_multi input.active');
+            slider.val(45);
+            slider.trigger('click');
+        },
+    },
+    checkGradient: 'linear-gradient(135deg, rgb(203, 94, 238) 0%, rgb(203, 94, 238) 45%, rgb(75, 225, 236) 100%)',
+}),
+...updateAndCheckCustomGradient({
+    updateStep: {
+        trigger: '.colorpicker .o_color_picker_inputs .o_hex_div input',
+        content: 'Pick step color',
+        run: 'text #FF0000',
+    },
+    checkGradient: 'linear-gradient(135deg, rgb(203, 94, 238) 0%, rgb(255, 0, 0) 45%, rgb(75, 225, 236) 100%)',
+}),
+...updateAndCheckCustomGradient({
+    updateStep: {
+        trigger: '.colorpicker .o_remove_color',
+        content: 'Delete step',
+        run: 'click',
+    },
+    checkGradient: 'linear-gradient(135deg, rgb(203, 94, 238) 0%, rgb(75, 225, 236) 100%)',
+}),
+// Linear
+...updateAndCheckCustomGradient({
+    updateStep: {
+        trigger: '.colorpicker input[data-name="angle"]',
+        content: 'Change angle',
+        run: 'text_blur 50',
+    },
+    checkGradient: 'linear-gradient(50deg, rgb(203, 94, 238) 0%, rgb(75, 225, 236) 100%)',
+}),
+// Radial
+...updateAndCheckCustomGradient({
+    updateStep: {
+        trigger: '.colorpicker we-button[data-gradient-type="radial-gradient"]',
+        content: 'Switch to Radial',
+        run: 'click',
+    },
+    checkGradient: 'radial-gradient(circle farthest-side at 25% 25%, rgb(203, 94, 238) 0%, rgb(75, 225, 236) 100%)',
+}),
+...updateAndCheckCustomGradient({
+    updateStep: {
+        trigger: '.colorpicker input[data-name="positionX"]',
+        content: 'Change X position',
+        run: 'text_blur 33',
+    },
+    checkGradient: 'radial-gradient(circle farthest-side at 33% 25%, rgb(203, 94, 238) 0%, rgb(75, 225, 236) 100%)',
+}),
+...updateAndCheckCustomGradient({
+    updateStep: {
+        trigger: '.colorpicker input[data-name="positionY"]',
+        content: 'Change Y position',
+        run: 'text_blur 75',
+    },
+    checkGradient: 'radial-gradient(circle farthest-side at 33% 75%, rgb(203, 94, 238) 0%, rgb(75, 225, 236) 100%)',
+}),
+...updateAndCheckCustomGradient({
+    updateStep: {
+        trigger: '.colorpicker we-button[data-gradient-size="closest-side"]',
+        content: 'Change color spread size',
+        run: 'click',
+    },
+    checkGradient: 'radial-gradient(circle closest-side at 33% 75%, rgb(203, 94, 238) 0%, rgb(75, 225, 236) 100%)',
+}),
+// Revert to predefined gradient
+{
+    trigger: `.o_we_color_btn[data-color="${gradients[0]}"]`,
+    content: `Revert to predefiend gradient ${gradients[0]}`,
+    run: 'click',
+},
+
+// Replace the gradient by a bg color
+...checkAndUpdateBackgroundColor({
+    checkCC: 1,
+    checkGradient: gradients[0],
+    checkNoGradient: gradients[1],
+    changeType: 'bg',
+    change: 'black-75',
+    finalSelector: `.${snippets[0].id}.o_cc.o_cc1.bg-black-75[style^="background-image: url("]:not([style*="${gradients[0]}"])`
+}),
+
+// Re-add a gradient
+...checkAndUpdateBackgroundColor({
+    checkCC: 1,
+    checkBg: 'black-75',
+    checkNoGradient: gradients[0],
+    changeType: 'gradient',
+    change: gradients[1],
+    finalSelector: `.${snippets[0].id}.o_cc.o_cc1:not(.bg-black-75)`,
+    finalRun: function () {
+        const parts = weUtils.backgroundImageCssToParts(this.$anchor.css('background-image'));
+        if (!parts.url || !parts.url.startsWith('url(')) {
+            console.error('The image should have been kept when re-adding the gradient');
+        }
+        if (parts.gradient !== gradients[1]) {
+            console.error('The gradient should have been re-added');
+        }
+    },
+}),
+
+// Final check of color selection and removing the image
+...checkAndUpdateBackgroundColor({
+    checkCC: 1,
+    checkNoBg: 'black-75',
+    checkGradient: gradients[1],
+}),
+wTourUtils.changeOption('ColoredLevelBackground', '[data-name="bg_image_toggle_opt"]'),
+{
+    trigger: `.${snippets[0].id}.o_cc.o_cc1[style*="background-image: ${gradients[1]}"]`,
+    run: () => null,
+},
+
+// Now removing all colors via the 'None' button (note: colorpicker still opened)
+{
+    trigger: '.o_colorpicker_reset',
+    content: "Click on the None button of the color palette",
+},
+{
+    trigger: `.${snippets[0].id}:not(.o_cc):not(.o_cc1):not([style*="background-image"])`,
+    content: "All color classes and properties should have been removed",
+    run: () => null,
+}
+]);
+
+return __exports;
+});
+;
+
+/***************************************************************
+*  Filepath: /website/static/tests/tours/snippet_countdown.js  *
+*  Bundle: web.assets_tests                                    *
+*  Lines: 62                                                   *
+***************************************************************/
+odoo.define('@website/../tests/tours/snippet_countdown', async function (require) {
+'use strict';
+let __exports = {};
+/** @odoo-module */
+
+const tour = require('web_tour.tour');
+const wTourUtils = require('website.tour_utils');
+
+tour.register('snippet_countdown', {
+    test: true,
+    url: '/?enable_editor=1',
+}, [
+    wTourUtils.dragNDrop({id: 's_countdown', name: 'Countdown'}),
+    wTourUtils.clickOnSnippet({id: 's_countdown', name: 'Countdown'}),
+    wTourUtils.changeOption('countdown', 'we-select:has([data-end-action]) we-toggler', 'end action'),
+    wTourUtils.changeOption('countdown', 'we-button[data-end-action="message"]', 'end action'),
+    wTourUtils.changeOption('countdown', 'we-button.toggle-edit-message', 'message preview'),
+    // The next two steps check that the end message does not disappear when a
+    // widgets_start_request is triggered.
+    {
+        content: "Hover an option which has a preview",
+        trigger: '[data-select-class="o_half_screen_height"]',
+        run: function (actions) {
+            this.$anchor.trigger('mouseover');
+            this.$anchor.trigger('mouseenter');
+        },
+    },
+    {
+        content: "Check that the countdown message is still displayed",
+        trigger: '.s_countdown .s_picture',
+        run: () => {
+            // Just a visibility check
+
+            // Also make sure the mouseout and mouseleave are triggered so that
+            // next steps make sense.
+            // TODO the next steps are not actually testing anything without
+            // it and the mouseout and mouseleave make sense but really it
+            // should not be *necessary* to simulate those for the editor flow
+            // to make some sense.
+            const $previousAnchor = $('[data-select-class="o_half_screen_height"]');
+            $previousAnchor.trigger('mouseout');
+            $previousAnchor.trigger('mouseleave');
+        },
+    },
+    // Next, we change the end action to message and no countdown while the edit
+    // message toggle is still activated. It should hide the countdown
+    wTourUtils.changeOption('countdown', 'we-select:has([data-end-action]) we-toggler', 'end action'),
+    wTourUtils.changeOption('countdown', 'we-button[data-end-action="message_no_countdown"]', 'end action'),
+    {
+        content: "Check that the countdown is not displayed",
+        trigger: '.s_countdown:has(.s_countdown_canvas_wrapper:not(:visible))',
+        run: () => null, // Just a visibility check
+    },
+    {
+        content: "Check that the message is still displayed",
+        trigger: '.s_countdown .s_picture',
+        run: () => null, // Just a visibility check
+    },
+]);
+
+return __exports;
+});
+;
+
+/*****************************************************************************
+*  Filepath: /website/static/tests/tours/snippet_empty_parent_autoremove.js  *
+*  Bundle: web.assets_tests                                                  *
+*  Lines: 69                                                                 *
+*****************************************************************************/
+odoo.define("website.tour.snippet_empty_parent_autoremove", function (require) {
+"use strict";
+
+const tour = require('web_tour.tour');
+const wTourUtils = require('website.tour_utils');
+
+function removeSelectedBlock() {
+    return {
+        content: "Remove selected block",
+        trigger: '#oe_snippets we-customizeblock-options:nth-last-child(3) .oe_snippet_remove',
+    };
+}
+
+tour.register('snippet_empty_parent_autoremove', {
+    test: true,
+    url: '/?enable_editor=1',
+}, [
+    // Base case: remove both columns from text - image
+    wTourUtils.dragNDrop({
+        id: 's_text_image',
+        name: 'Text - Image',
+    }),
+    {
+        content: "Click on second column",
+        trigger: '#wrap .s_text_image .row > :nth-child(2)',
+    },
+    removeSelectedBlock(),
+    {
+        content: "Click on first column",
+        trigger: '#wrap .s_text_image .row > :first-child',
+    },
+    removeSelectedBlock(),
+    {
+        content: "Check that #wrap is empty",
+        trigger: '#wrap:empty',
+    },
+
+    // Banner: test that parallax, bg-filter and shape are not treated as content
+    wTourUtils.dragNDrop({
+        id: 's_banner',
+        name: 'Banner',
+    }),
+    wTourUtils.clickOnSnippet({
+        id: 's_banner',
+        name: 'Banner',
+    }),
+    {
+        content: "Check that parallax is present",
+        trigger: '#wrap .s_banner .s_parallax_bg',
+        run: () => null,
+    },
+    wTourUtils.changeOption('ColoredLevelBackground', 'Shape'),
+    {
+        content: "Check that shape is present",
+        trigger: '#wrap .s_banner .o_we_shape',
+        run: () => null,
+    },
+    {
+        content: "Click on first column",
+        trigger: '#wrap .s_banner .row > :first-child',
+    },
+    removeSelectedBlock(),
+    {
+        content: "Check that #wrap is empty",
+        trigger: '#wrap:empty',
+        run: () => null,
+    },
+]);
+});
+;
+
+/**********************************************************************
+*  Filepath: /website/static/tests/tours/snippet_popup_add_remove.js  *
+*  Bundle: web.assets_tests                                           *
+*  Lines: 60                                                          *
+**********************************************************************/
+odoo.define('@website/../tests/tours/snippet_popup_add_remove', async function (require) {
+'use strict';
+let __exports = {};
+/** @odoo-module */
+
+const tour = require('web_tour.tour');
+
+tour.register('snippet_popup_add_remove', {
+    test: true,
+    url: '/?enable_editor=1',
+}, [{
+    content: 'Drop s_popup snippet',
+    trigger: '#oe_snippets .oe_snippet:has( > [data-snippet="s_popup"]) .oe_snippet_thumbnail',
+    run: "drag_and_drop #wrap",
+}, {
+    content: 'Edit s_popup snippet',
+    in_modal: false,
+    trigger: '#wrap.o_editable [data-snippet="s_popup"] .row > div', // Click deep in the snippet structure
+}, {
+    content: 'Check s_popup setting are loaded, wait panel is visible',
+    in_modal: false,
+    trigger: '.o_we_customize_panel',
+    run: () => null,
+}, {
+    content: `Remove the s_popup snippet`,
+    in_modal: false,
+    trigger: '.o_we_customize_panel we-button.oe_snippet_remove:first',
+}, {
+    content: 'Check the s_popup was removed',
+    in_modal: false,
+    trigger: '#wrap.o_editable:not(:has([data-snippet="s_popup"]))',
+    run: () => null,
+},
+// Test that undoing dropping the snippet removes the invisible elements panel.
+{
+    content: "Drop the snippet again.",
+    trigger: '#oe_snippets .oe_snippet:has(> [data-snippet="s_popup"]) .oe_snippet_thumbnail',
+    run: "drag_and_drop #wrap",
+}, {
+    content: "The popup should be in the invisible elements panel.",
+    in_modal: false,
+    trigger: '.o_we_invisible_el_panel .o_we_invisible_entry',
+    run: () => null, // It's a check.
+}, {
+    content: "Click on the 'undo' button.",
+    in_modal: false,
+    trigger: '#oe_snippets button[data-action="undo"]',
+}, {
+    content: "Check that the s_popup was removed.",
+    in_modal: false,
+    trigger: '#wrap.o_editable:not(:has([data-snippet="s_popup"]))',
+    run: () => null, // It's a check.
+}, {
+    content: "The invisible elements panel should also be removed.",
+    trigger: '#oe_snippets:has(.o_we_invisible_el_panel.d-none)',
+    run: () => null, // It's a check.
+}]);
+
+return __exports;
+});
+;
+
+/*************************************************************
+*  Filepath: /website/static/tests/tours/snippet_version.js  *
+*  Bundle: web.assets_tests                                  *
+*  Lines: 67                                                 *
+*************************************************************/
+odoo.define("website.tour.snippet_version", function (require) {
+"use strict";
+
+var tour = require("web_tour.tour");
+
+tour.register("snippet_version", {
+    test: true,
+    url: "/",
+}, [{
+    content: "Enter edit mode",
+    trigger: 'a[data-action=edit]',
+}, {
+    content: "Drop s_test_snip snippet",
+    trigger: '#oe_snippets .oe_snippet:has(.s_test_snip) .oe_snippet_thumbnail',
+    run: "drag_and_drop #wrap",
+}, {
+    content: "Drop s_text_image snippet",
+    trigger: '#oe_snippets .oe_snippet:has(.s_text_image) .oe_snippet_thumbnail:not(.o_we_already_dragging)',
+    run: "drag_and_drop #wrap",
+}, {
+    content: "Test t-snippet and t-snippet-call: snippets have data-snippet set",
+    trigger: '#oe_snippets .o_panel_body > .oe_snippet.ui-draggable',
+    run: function () {
+        // Tests done here as all these are not visible on the page
+        const draggableSnippets = document.querySelectorAll('#oe_snippets .o_panel_body > .oe_snippet.ui-draggable > :nth-child(2)');
+        if (![...draggableSnippets].every(el => el.dataset.snippet)) {
+            console.error("error Some t-snippet are missing their template name");
+        }
+        if (!document.querySelector('#oe_snippets [data-snippet="s_test_snip"] [data-snippet="s_share"]')) {
+            console.error("error s_share t-called inside s_test_snip is missing template name");
+        }
+        if (!document.querySelector('#wrap [data-snippet="s_test_snip"] [data-snippet="s_share"]')) {
+            console.error("error Dropped a s_test_snip snippet but missing s_share template name in it");
+        }
+    },
+}, {
+    content: "Enter edit mode",
+    trigger: 'button[data-action="save"]',
+}, {
+    content: "Enter edit mode",
+    extra_trigger: 'body:not(.editor_enable)',
+    trigger: 'a[data-action=edit]',
+}, {
+    content: "Modify the version of snippets",
+    trigger: '#oe_snippets .o_panel_body > .oe_snippet',
+    run: function () {
+        document.querySelector('#oe_snippets .oe_snippet > [data-snippet="s_test_snip"]').dataset.vjs = '999';
+        document.querySelector('#oe_snippets .oe_snippet > [data-snippet="s_share"]').dataset.vcss = '999';
+        document.querySelector('#oe_snippets .oe_snippet > [data-snippet="s_text_image"]').dataset.vxml = '999';
+    },
+}, {
+    content: "Edit s_test_snip",
+    trigger: '#wrap.o_editable .s_test_snip',
+}, {
+    content: "Edit text_image",
+    extra_trigger: 'we-customizeblock-options:contains(Test snip) .snippet-option-VersionControl > we-alert',
+    trigger: '#wrap.o_editable .s_text_image',
+}, {
+    content: "Edit s_share",
+    extra_trigger: 'we-customizeblock-options:contains(Text - Image) .snippet-option-VersionControl  > we-alert',
+    trigger: '#wrap.o_editable .s_share',
+}, {
+    content: "s_share is outdated",
+    extra_trigger: 'we-customizeblock-options:contains(Share) .snippet-option-VersionControl > we-alert',
+    trigger: 'body',
+}]);
+});
+;
+
+/************************************************************************
+*  Filepath: /website/static/tests/tours/snippets_all_drag_and_drop.js  *
+*  Bundle: web.assets_tests                                             *
+*  Lines: 97                                                            *
+************************************************************************/
+odoo.define("website.tour.snippets_all_drag_and_drop", async function (require) {
+"use strict";
+
+const snippetsEditor = require('web_editor.snippet.editor');
+
+snippetsEditor.SnippetEditor.include({
+    removeSnippet: async function (shouldRecordUndo = true) {
+        await this._super(...arguments);
+        $('body').attr('test-dd-snippet-removed', true);
+    },
+});
+
+const tour = require("web_tour.tour");
+
+let snippetsNames = (new URL(document.location.href)).searchParams.get('snippets_names') || '';
+snippetsNames = snippetsNames.split(',');
+let steps = [];
+let n = 0;
+for (const snippet of snippetsNames) {
+    n++;
+    const snippetSteps = [{
+        content: `Drop ${snippet} snippet [${n}/${snippetsNames.length}]`,
+        trigger: `#oe_snippets .oe_snippet:has( > [data-snippet='${snippet}']) .oe_snippet_thumbnail`,
+        run: "drag_and_drop #wrap",
+    }, {
+        content: `Edit ${snippet} snippet`,
+        trigger: `#wrap.o_editable [data-snippet='${snippet}']`,
+    }, {
+        content: `check ${snippet} setting are loaded, wait panel is visible`,
+        trigger: ".o_we_customize_panel",
+        run: function () {}, // it's a check
+    }, {
+        content: `Remove the ${snippet} snippet`, // Avoid bad perf if many snippets
+        trigger: "we-button.oe_snippet_remove:last"
+    }, {
+        content: `click on 'BLOCKS' tab (${snippet})`,
+        extra_trigger: 'body[test-dd-snippet-removed]',
+        trigger: ".o_we_add_snippet_btn",
+        run: function (actions) {
+            $('body').removeAttr('test-dd-snippet-removed');
+            actions.auto();
+        },
+    }];
+
+    if (snippet === 's_google_map') {
+        snippetSteps.splice(1, 3, {
+            content: 'Close API Key popup',
+            trigger: ".modal-footer .btn-secondary",
+        });
+    } else if (['s_popup', 's_newsletter_subscribe_popup'].includes(snippet)) {
+        snippetSteps[2]['in_modal'] = false;
+        snippetSteps.splice(3, 2, {
+            content: `Hide the ${snippet} popup`,
+            trigger: ".s_popup_close",
+        });
+    }
+    steps = steps.concat(snippetSteps);
+}
+
+tour.register("snippets_all_drag_and_drop", {
+    test: true,
+}, [
+    {
+        content: "Ensure snippets are actually passed at the test.",
+        trigger: "body",
+        run: function () {
+            // safety check, otherwise the test might "break" one day and
+            // receive no steps. The test would then not test anything anymore
+            // without us noticing it.
+            if (steps.length < 220) {
+                console.error("This test is not behaving as it should.");
+            }
+        },
+    },
+    // This first step is needed as it will be used later for inner snippets
+    // Without this, it will dropped inside the footer and will need an extra
+    // selector.
+    {
+        content: "Drop s_text_image snippet",
+        trigger: "#oe_snippets .oe_snippet:has( > [data-snippet='s_text_image']) .oe_snippet_thumbnail",
+        run: "drag_and_drop #wrap"
+    },
+    {
+        content: "Edit s_text_image snippet",
+        trigger: "#wrap.o_editable [data-snippet='s_text_image']"
+    },
+    {
+        content: "check setting are loaded, wait panel is visible",
+        trigger: ".o_we_customize_panel"
+    },
+    {
+        content: "click on 'BLOCKS' tab",
+        trigger: ".o_we_add_snippet_btn"
+    },
+].concat(steps)
+);
+});
+;
+
+/*********************************************************************
+*  Filepath: /website/static/tests/tours/specific_website_editor.js  *
+*  Bundle: web.assets_tests                                          *
+*  Lines: 29                                                         *
+*********************************************************************/
+odoo.define('website.tour.specific_website_editor', function (require) {
+'use strict';
+
+var tour = require('web_tour.tour');
+
+tour.register('generic_website_editor', {
+    test: true,
+}, [{
+    trigger: 'a[data-action=edit]',
+    content: 'Click edit button',
+}, {
+    trigger: 'body:not([data-hello="world"])',
+    extra_trigger: '#oe_snippets.o_loaded',
+    content: 'Check that the editor DOM matches its website-generic features',
+    run: function () {}, // Simple check
+}]);
+
+tour.register('specific_website_editor', {
+    test: true,
+}, [{
+    trigger: 'a[data-action=edit]',
+    content: 'Click edit button',
+}, {
+    trigger: 'body[data-hello="world"]',
+    extra_trigger: '#oe_snippets.o_loaded',
+    content: 'Check that the editor DOM matches its website-specific features',
+    run: function () {}, // Simple check
+}]);
+});
+;
+
+/*****************************************************************
+*  Filepath: /website/static/tests/tours/website_form_editor.js  *
+*  Bundle: web.assets_tests                                      *
+*  Lines: 622                                                    *
+*****************************************************************/
+odoo.define('website.tour.form_editor', function (require) {
+    'use strict';
+
+    const rpc = require('web.rpc');
+    const tour = require("web_tour.tour");
+
+    // Visibility possible values:
+    const VISIBLE = 'Always Visible';
+    const HIDDEN = 'Hidden';
+    const CONDITIONALVISIBILITY = 'Visible only if';
+
+    const selectButtonByText = function (text) {
+        return [{
+            content: "Open the select",
+            trigger: `we-select:has(we-button:contains("${text}")) we-toggler`,
+        },
+        {
+            content: "Click on the option",
+            trigger: `we-select we-button:contains("${text}")`,
+        }];
+    };
+    const selectButtonByData = function (data) {
+        return [{
+            content: "Open the select",
+            trigger: `we-select:has(we-button[${data}]) we-toggler`,
+        }, {
+            content: "Click on the option",
+            trigger: `we-select we-button[${data}]`,
+        }];
+    };
+    const addField = function (data, name, type, label, required, display = {visibility: VISIBLE, condition: ''}) {
+        const ret = [{
+            content: "Select form",
+            extra_trigger: '.s_website_form_field',
+            trigger: 'section.s_website_form',
+        }, {
+            content: "Add field",
+            trigger: 'we-button[data-add-field]',
+        },
+        ...selectButtonByData(data),
+        {
+            content: "Wait for field to load",
+            trigger: `.s_website_form_field[data-type="${name}"], .s_website_form_input[name="${name}"]`, //custom or existing field
+            run: function () {},
+        },
+        ...selectButtonByText(display.visibility),
+    ];
+        let testText = '.s_website_form_field';
+        if (display.condition) {
+            ret.push({
+                content: "Set the visibility condition",
+                trigger: 'we-input[data-attribute-name="visibilityCondition"] input',
+                run: `text ${display.condition}`,
+            });
+        }
+        if (required) {
+            testText += '.s_website_form_required';
+            ret.push({
+                content: "Mark the field as required",
+                trigger: 'we-button[data-name="required_opt"] we-checkbox',
+            });
+        }
+        if (label) {
+            testText += `:has(label:contains("${label}"))`;
+            ret.push({
+                content: "Change the label text",
+                trigger: 'we-input[data-set-label-text] input',
+                run: `text ${label}`,
+            });
+        }
+        if (type !== 'checkbox' && type !== 'radio' && type !== 'select') {
+            let inputType = type === 'textarea' ? type : `input[type="${type}"]`;
+            testText += `:has(${inputType}[name="${name}"]${required ? '[required]' : ''})`;
+        }
+        ret.push({
+            content: "Check the resulting field",
+            trigger: testText,
+            run: function () {},
+        });
+        return ret;
+    };
+    const addCustomField = function (name, type, label, required, display) {
+        return addField(`data-custom-field="${name}"`, name, type, label, required, display);
+    };
+    const addExistingField = function (name, type, label, required, display) {
+        return addField(`data-existing-field="${name}"`, name, type, label, required, display);
+    };
+
+    tour.register("website_form_editor_tour", {
+        test: true,
+    }, [
+        // Drop a form builder snippet and configure it
+        {
+            content: "Enter edit mode",
+            trigger: 'a[data-action=edit]',
+        }, {
+            content: "Drop the form snippet",
+            trigger: '#oe_snippets .oe_snippet:has(.s_website_form) .oe_snippet_thumbnail',
+            run: 'drag_and_drop #wrap',
+        }, {
+            content: "Select form by clicking on an input field",
+            extra_trigger: '.s_website_form_field',
+            trigger: 'section.s_website_form input',
+        }, {
+            content: "Verify that the form editor appeared",
+            trigger: '.o_we_customize_panel .snippet-option-WebsiteFormEditor',
+            run: () => null,
+        }, {
+            content: "Go back to blocks to unselect form",
+            trigger: '.o_we_add_snippet_btn',
+        }, {
+            content: "Select form by clicking on a text area",
+            extra_trigger: '.s_website_form_field',
+            trigger: 'section.s_website_form textarea',
+        }, {
+            content: "Verify that the form editor appeared",
+            trigger: '.o_we_customize_panel .snippet-option-WebsiteFormEditor',
+            run: () => null,
+        }, {
+            content: "Rename the field label",
+            trigger: 'we-input[data-set-label-text] input',
+            run: "text Renamed",
+        }, {
+            content: "Leave the rename options",
+            trigger: 'we-input[data-set-label-text] input',
+            run: "text_blur",
+        }, {
+            content: "Go back to blocks to unselect form",
+            trigger: '.o_we_add_snippet_btn',
+        }, {
+            content: "Select form itself (not a specific field)",
+            extra_trigger: '.s_website_form_field',
+            trigger: 'section.s_website_form',
+        },
+        ...selectButtonByText('Send an E-mail'),
+        {
+            content: "Form has a model name",
+            trigger: 'section.s_website_form form[data-model_name="mail.mail"]',
+        }, {
+            content: 'Edit the Phone Number field',
+            trigger: 'input[name="phone"]',
+        }, {
+            content: 'Change the label position of the phone field',
+            trigger: 'we-button[data-select-label-position="right"]',
+        },
+        ...addExistingField('email_cc', 'text', 'Test conditional visibility', false, {visibility: CONDITIONALVISIBILITY, condition: 'odoo'}),
+
+        ...addExistingField('date', 'text', 'Test Date', true),
+
+        ...addExistingField('record_name', 'text', 'Awesome Label', false, {visibility: HIDDEN}),
+
+        ...addExistingField('body_html', 'textarea', 'Your Message', true),
+
+        ...addExistingField('recipient_ids', 'checkbox'),
+
+        ...addCustomField('one2many', 'checkbox', 'Products', true),
+        {
+            content: "Change Option 1 label",
+            trigger: 'we-list table input:eq(0)',
+            run: 'text Iphone',
+        }, {
+            content: "Change Option 2 label",
+            trigger: 'we-list table input:eq(1)',
+            run: 'text Galaxy S',
+        }, {
+            content: "Change first Option 3 label",
+            trigger: 'we-list table input:eq(2)',
+            run: 'text Xperia',
+        }, {
+            content: "Click on Add new Checkbox",
+            trigger: 'we-list we-button.o_we_list_add_optional',
+        }, {
+            content: "Change added Option label",
+            trigger: 'we-list table input:eq(3)',
+            run: 'text Wiko Stairway',
+        }, {
+            content: "Check the resulting field",
+            trigger: ".s_website_form_field.s_website_form_custom.s_website_form_required" +
+                        ":has(.s_website_form_multiple[data-display='horizontal'])" +
+                        ":has(.checkbox:has(label:contains('Iphone')):has(input[type='checkbox'][required]))" +
+                        ":has(.checkbox:has(label:contains('Galaxy S')):has(input[type='checkbox'][required]))" +
+                        ":has(.checkbox:has(label:contains('Xperia')):has(input[type='checkbox'][required]))" +
+                        ":has(.checkbox:has(label:contains('Wiko Stairway')):has(input[type='checkbox'][required]))",
+            run: function () {},
+        },
+        ...selectButtonByData('data-multi-checkbox-display="vertical"'),
+        {
+            content: "Check the resulting field",
+            trigger: ".s_website_form_field.s_website_form_custom.s_website_form_required" +
+                        ":has(.s_website_form_multiple[data-display='vertical'])" +
+                        ":has(.checkbox:has(label:contains('Iphone')):has(input[type='checkbox'][required]))" +
+                        ":has(.checkbox:has(label:contains('Galaxy S')):has(input[type='checkbox'][required]))" +
+                        ":has(.checkbox:has(label:contains('Xperia')):has(input[type='checkbox'][required]))" +
+                        ":has(.checkbox:has(label:contains('Wiko Stairway')):has(input[type='checkbox'][required]))",
+            run: function () {},
+        },
+
+        ...addCustomField('selection', 'radio', 'Service', true),
+        {
+            content: "Change Option 1 label",
+            trigger: 'we-list table input:eq(0)',
+            run: 'text After-sales Service',
+        }, {
+            content: "Change Option 2 label",
+            trigger: 'we-list table input:eq(1)',
+            run: 'text Invoicing Service',
+        }, {
+            content: "Change first Option 3 label",
+            trigger: 'we-list table input:eq(2)',
+            run: 'text Development Service',
+        }, {
+            content: "Click on Add new Checkbox",
+            trigger: 'we-list we-button.o_we_list_add_optional',
+        }, {
+            content: "Change last Option label",
+            trigger: 'we-list table input:eq(3)',
+            run: 'text Management Service',
+        }, {
+            content: "Mark the field as not required",
+            trigger: 'we-button[data-name="required_opt"] we-checkbox',
+        }, {
+            content: "Check the resulting field",
+            trigger: ".s_website_form_field.s_website_form_custom:not(.s_website_form_required)" +
+                        ":has(.radio:has(label:contains('After-sales Service')):has(input[type='radio']:not([required])))" +
+                        ":has(.radio:has(label:contains('Invoicing Service')):has(input[type='radio']:not([required])))" +
+                        ":has(.radio:has(label:contains('Development Service')):has(input[type='radio']:not([required])))" +
+                        ":has(.radio:has(label:contains('Management Service')):has(input[type='radio']:not([required])))",
+            run: function () {},
+        },
+
+        ...addCustomField('many2one', 'select', 'State', true),
+
+        // Customize custom selection field
+        {
+            content: "Change Option 1 Label",
+            trigger: 'we-list table input:eq(0)',
+            run: 'text Germany',
+        }, {
+            content: "Change Option 2 Label",
+            trigger: 'we-list table input:eq(1)',
+            run: 'text Belgium',
+        }, {
+            content: "Change first Option 3 label",
+            trigger: 'we-list table input:eq(2)',
+            run: 'text France',
+        }, {
+            content: "Click on Add new Checkbox",
+            trigger: 'we-list we-button.o_we_list_add_optional',
+        }, {
+            content: "Change last Option label",
+            trigger: 'we-list table input:eq(3)',
+            run: 'text Canada',
+        }, {
+            content: "Remove Germany Option",
+            trigger: '.o_we_select_remove_option:eq(0)',
+        }, {
+            content: "Check the resulting snippet",
+            trigger: ".s_website_form_field.s_website_form_custom.s_website_form_required" +
+                        ":has(label:contains('State'))" +
+                        ":has(select[required]:hidden)" +
+                        ":has(.s_website_form_select_item:contains('Belgium'))" +
+                        ":has(.s_website_form_select_item:contains('France'))" +
+                        ":has(.s_website_form_select_item:contains('Canada'))" +
+                        ":not(:has(.s_website_form_select_item:contains('Germany')))",
+            run: function () {},
+        },
+
+        ...addExistingField('attachment_ids', 'file', 'Invoice Scan'),
+
+        {
+            content: "Insure the history step of the editor is not checking for unbreakable",
+            trigger: '#wrapwrap',
+            run: () => {
+                const wysiwyg = $('#wrapwrap').data('wysiwyg');
+                wysiwyg.odooEditor.historyStep(true);
+            },
+        },
+        // Edit the submit button using linkDialog.
+        {
+            content: "Click submit button to show edit popover",
+            trigger: '.s_website_form_send',
+        }, {
+            content: "Click on Edit Link in Popover",
+            trigger: '.o_edit_menu_popover .o_we_edit_link',
+        }, {
+            content: "Check that no URL field is suggested",
+            trigger: '#toolbar:has(#url_row:hidden)',
+            run: () => null,
+        }, {
+            content: "Change button's style",
+            trigger: '.dropdown-toggle[data-original-title="Link Style"]',
+            run: () => {
+                $('.dropdown-toggle[data-original-title="Link Style"]').click();
+                $('[data-value="secondary"]').click();
+                $('[data-original-title="Link Shape"]').click();
+                $('[data-value="rounded-circle"]').click();
+                $('[data-original-title="Link Size"]').click();
+                $('[data-value="sm"]').click();
+            },
+        }, {
+            content: "Check the resulting button",
+            trigger: '.s_website_form_send.btn.btn-sm.btn-secondary.rounded-circle',
+            run: () => null,
+        },
+        // Add a default value to a auto-fillable field.
+        {
+            content: 'Select the name field',
+            trigger: '.s_website_form_field:eq(0)',
+        }, {
+            content: 'Set a default value to the name field',
+            trigger: 'we-input[data-attribute-name="value"] input',
+            run: 'text John Smith',
+        },
+        {
+            content:  "Save the page",
+            trigger:  "button[data-action=save]",
+        },
+        {
+            content: 'Verify value attribute and property',
+            trigger: '.s_website_form_field:eq(0) input[value="John Smith"]:propValue("Mitchell Admin")',
+        },
+        {
+            content: 'Verify that phone field is still auto-fillable',
+            trigger: '.s_website_form_field input[data-fill-with="phone"]:propValue("+1 555-555-5555")',
+        },
+        // Check that if we edit again and save again the default value is not deleted.
+        {
+            content: 'Enter in edit mode again',
+            trigger: 'a[data-action="edit"]',
+            run: 'click',
+        },
+        {
+            content: 'Edit the form',
+            trigger: '.s_website_form_field:eq(0) input',
+            extra_trigger: 'button[data-action="save"]',
+            run: 'click',
+        },
+        ...addCustomField('many2one', 'select', 'Select Field', true),
+        {
+            content: 'Save the page',
+            trigger: 'button[data-action=save]',
+            run: 'click',
+        },
+        {
+            content: 'Verify that the value has not been deleted',
+            trigger: '.s_website_form_field:eq(0) input[value="John Smith"]',
+        },
+        {
+            content: 'Enter in edit mode again',
+            trigger: 'a[data-action="edit"]',
+            run: 'click',
+        },
+        {
+            content: 'Click on the submit button',
+            trigger: '.s_website_form_send',
+            extra_trigger: 'button[data-action="save"]',
+            run: 'click',
+        },
+        {
+            content: 'Change the Recipient Email',
+            trigger: '[data-field-name="email_to"] input',
+            run: 'text test@test.test',
+        },
+        {
+            content: 'Save the page',
+            trigger: 'button[data-action=save]',
+            run: 'click',
+        },
+        {
+            content: 'Verify that the recipient email has been saved',
+            trigger: 'body:not(.editor_enable)',
+            // We have to this that way because the input type = hidden.
+            extra_trigger: 'form:has(input[name="email_to"][value="test@test.test"])',
+        },
+    ]);
+
+    tour.register("website_form_editor_tour_submit", {
+        test: true,
+    },[
+        {
+            content:  "Try to send the form with some required fields not filled in",
+            extra_trigger:  "form[data-model_name='mail.mail']" +
+                            "[data-success-page='/contactus-thank-you']" +
+                            ":has(.s_website_form_field:has(label:contains('Your Name')):has(input[type='text'][name='name'][required]))" +
+                            ":has(.s_website_form_field:has(label:contains('Your Email')):has(input[type='email'][name='email_from'][required]))" +
+                            ":has(.s_website_form_field:has(label:contains('Your Question')):has(textarea[name='description'][required]))" +
+                            ":has(.s_website_form_field:has(label:contains('Subject')):has(input[type='text'][name='subject'][required]))" +
+                            ":has(.s_website_form_field:has(label:contains('Test Date')):has(input[type='text'][name='date'][required]))" +
+                            ":has(.s_website_form_field:has(label:contains('Awesome Label')):hidden)" +
+                            ":has(.s_website_form_field:has(label:contains('Your Message')):has(textarea[name='body_html'][required]))" +
+                            ":has(.s_website_form_field:has(label:contains('Products')):has(input[type='checkbox'][name='Products'][value='Iphone'][required]))" +
+                            ":has(.s_website_form_field:has(label:contains('Products')):has(input[type='checkbox'][name='Products'][value='Galaxy S'][required]))" +
+                            ":has(.s_website_form_field:has(label:contains('Products')):has(input[type='checkbox'][name='Products'][value='Xperia'][required]))" +
+                            ":has(.s_website_form_field:has(label:contains('Products')):has(input[type='checkbox'][name='Products'][value='Wiko Stairway'][required]))" +
+                            ":has(.s_website_form_field:has(label:contains('Service')):has(input[type='radio'][name='Service'][value='After-sales Service']:not([required])))" +
+                            ":has(.s_website_form_field:has(label:contains('Service')):has(input[type='radio'][name='Service'][value='Invoicing Service']:not([required])))" +
+                            ":has(.s_website_form_field:has(label:contains('Service')):has(input[type='radio'][name='Service'][value='Development Service']:not([required])))" +
+                            ":has(.s_website_form_field:has(label:contains('Service')):has(input[type='radio'][name='Service'][value='Management Service']:not([required])))" +
+                            ":has(.s_website_form_field:has(label:contains('State')):has(select[name='State'][required]:has(option[value='Belgium'])))" +
+                            ":has(.s_website_form_field.s_website_form_required:has(label:contains('State')):has(select[name='State'][required]:has(option[value='France'])))" +
+                            ":has(.s_website_form_field:has(label:contains('State')):has(select[name='State'][required]:has(option[value='Canada'])))" +
+                            ":has(.s_website_form_field:has(label:contains('Invoice Scan')))" +
+                            ":has(.s_website_form_field:has(input[name='email_to'][value='test@test.test']))",
+            trigger:  ".s_website_form_send"
+        },
+        {
+            content:  "Check if required fields were detected and complete the Subject field",
+            extra_trigger:  "form:has(#s_website_form_result.text-danger)" +
+                            ":has(.s_website_form_field:has(label:contains('Your Name')):not(.o_has_error))" +
+                            ":has(.s_website_form_field:has(label:contains('Email')).o_has_error)" +
+                            ":has(.s_website_form_field:has(label:contains('Your Question')).o_has_error)" +
+                            ":has(.s_website_form_field:has(label:contains('Subject')).o_has_error)" +
+                            ":has(.s_website_form_field:has(label:contains('Test Date')).o_has_error)" +
+                            ":has(.s_website_form_field:has(label:contains('Your Message')).o_has_error)" +
+                            ":has(.s_website_form_field:has(label:contains('Products')).o_has_error)" +
+                            ":has(.s_website_form_field:has(label:contains('Service')):not(.o_has_error))" +
+                            ":has(.s_website_form_field:has(label:contains('State')):not(.o_has_error))" +
+                            ":has(.s_website_form_field:has(label:contains('Invoice Scan')):not(.o_has_error))",
+            trigger:  "input[name=subject]",
+            run:      "text Jane Smith"
+        },
+        {
+            content:  "Update required field status by trying to Send again",
+            trigger:  ".s_website_form_send"
+        },
+        {
+            content:  "Check if required fields were detected and complete the Message field",
+            extra_trigger:  "form:has(#s_website_form_result.text-danger)" +
+                            ":has(.s_website_form_field:has(label:contains('Your Name')):not(.o_has_error))" +
+                            ":has(.s_website_form_field:has(label:contains('Email')).o_has_error)" +
+                            ":has(.s_website_form_field:has(label:contains('Your Question')).o_has_error)" +
+                            ":has(.s_website_form_field:has(label:contains('Subject')):not(.o_has_error))" +
+                            ":has(.s_website_form_field:has(label:contains('Test Date')).o_has_error)" +
+                            ":has(.s_website_form_field:has(label:contains('Your Message')).o_has_error)" +
+                            ":has(.s_website_form_field:has(label:contains('Products')).o_has_error)" +
+                            ":has(.s_website_form_field:has(label:contains('Service')):not(.o_has_error))" +
+                            ":has(.s_website_form_field:has(label:contains('State')):not(.o_has_error))" +
+                            ":has(.s_website_form_field:has(label:contains('Invoice Scan')):not(.o_has_error))",
+            trigger:  "textarea[name=body_html]",
+            run:      "text A useless message"
+        },
+        {
+            content:  "Update required field status by trying to Send again",
+            trigger:  ".s_website_form_send"
+        },
+        {
+            content:  "Check if required fields was detected and check a product. If this fails, you probably broke the cleanForSave.",
+            extra_trigger:  "form:has(#s_website_form_result.text-danger)" +
+                            ":has(.s_website_form_field:has(label:contains('Your Name')):not(.o_has_error))" +
+                            ":has(.s_website_form_field:has(label:contains('Email')).o_has_error)" +
+                            ":has(.s_website_form_field:has(label:contains('Your Question')).o_has_error)" +
+                            ":has(.s_website_form_field:has(label:contains('Subject')):not(.o_has_error))" +
+                            ":has(.s_website_form_field:has(label:contains('Test Date')).o_has_error)" +
+                            ":has(.s_website_form_field:has(label:contains('Your Message')):not(.o_has_error))" +
+                            ":has(.s_website_form_field:has(label:contains('Products')).o_has_error)" +
+                            ":has(.s_website_form_field:has(label:contains('Service')):not(.o_has_error))" +
+                            ":has(.s_website_form_field:has(label:contains('State')):not(.o_has_error))" +
+                            ":has(.s_website_form_field:has(label:contains('Invoice Scan')):not(.o_has_error))",
+            trigger:  "input[name=Products][value='Wiko Stairway']"
+        },
+        {
+            content:  "Complete Date field",
+            trigger:  ".s_website_form_datetime [data-toggle='datetimepicker']",
+        },
+        {
+            content:  "Check another product",
+            trigger:  "input[name='Products'][value='Xperia']"
+        },
+        {
+            content:  "Check a service",
+            trigger:  "input[name='Service'][value='Development Service']"
+        },
+        {
+            content:  "Complete Your Name field",
+            trigger:  "input[name='name']",
+            run:      "text chhagan"
+        },
+        {
+            content:  "Complete Email field",
+            trigger:  "input[name=email_from]",
+            run:      "text test@mail.com"
+        },
+        {
+            content: "Complete Subject field",
+            trigger: 'input[name="subject"]',
+            run: 'text subject',
+        },
+        {
+            content:  "Complete Your Question field",
+            trigger:  "textarea[name='description']",
+            run:      "text magan"
+        },
+        {
+            content: "Check if conditional field is visible, it shouldn't.",
+            trigger: "body",
+            run: function () {
+                const style = window.getComputedStyle(this.$anchor[0].getElementsByClassName('s_website_form_field_hidden_if')[0]);
+                if (style.display !== 'none') {
+                    console.error('error This field should be invisible when the name is not odoo');
+                }
+            }
+        },
+        {
+            content: "Change name input",
+            trigger: "input[name='name']",
+            run: "text odoo",
+        },
+        {
+            content: "Check if conditional field is visible, it should.",
+            trigger: "input[name='email_cc']",
+        },
+        {
+            content:  "Send the form",
+            trigger:  ".s_website_form_send"
+        },
+        {
+            content:  "Check form is submitted without errors",
+            trigger:  "#wrap:has(h1:contains('Thank You!'))"
+        }
+    ]);
+
+    tour.register("website_form_editor_tour_results", {
+        test: true,
+    }, [
+        {
+            content: "Check mail.mail records have been created",
+            trigger: "body",
+            run: function () {
+                var mailDef = rpc.query({
+                        model: 'mail.mail',
+                        method: 'search_count',
+                        args: [[
+                            ['email_to', '=', 'test@test.test'],
+                            ['body_html', 'like', 'A useless message'],
+                            ['body_html', 'like', 'Service : Development Service'],
+                            ['body_html', 'like', 'State : Belgium'],
+                            ['body_html', 'like', 'Products : Xperia,Wiko Stairway']
+                        ]],
+                    });
+                var success = function(model, count) {
+                    if (count > 0) {
+                        $('body').append('<div id="website_form_editor_success_test_tour_'+model+'"></div>');
+                    }
+                };
+                mailDef.then(_.bind(success, this, 'mail_mail'));
+            }
+        },
+        {
+            content:  "Check mail.mail records have been created",
+            trigger:  "#website_form_editor_success_test_tour_mail_mail"
+        }
+    ]);
+
+    function editContactUs(steps) {
+        return [
+            {
+                content: "Enter edit mode",
+                trigger: 'a[data-action=edit]',
+            }, {
+                content: "Select the contact us form by clicking on an input field",
+                trigger: '.s_website_form input',
+                extra_trigger: '#oe_snippets .oe_snippet_thumbnail',
+                run: 'click',
+            },
+            ...steps,
+            {
+                content: 'Save the page',
+                trigger: 'button[data-action=save]',
+            },
+            {
+                content: 'Wait for reload',
+                trigger: 'body:not(.editor_enable)',
+            },
+        ];
+    }
+
+    tour.register('website_form_contactus_edition_with_email', {
+        test: true,
+        url: '/contactus',
+    }, editContactUs([
+        {
+            content: 'Change the Recipient Email',
+            trigger: '[data-field-name="email_to"] input',
+            run: 'text test@test.test',
+        },
+    ]));
+    tour.register('website_form_contactus_edition_no_email', {
+        test: true,
+        url: '/contactus',
+    }, editContactUs([
+        {
+            content: "Change a random option",
+            trigger: '[data-set-mark] input',
+            run: 'text_blur **',
+        },
+    ]));
+    tour.register('website_form_contactus_submit', {
+        test: true,
+        url: '/contactus',
+    }, [
+        // As the demo portal user, only two inputs needs to be filled to send
+        // the email
+        {
+            content: "Fill in the subject",
+            trigger: 'input[name="subject"]',
+        },
+        {
+            content: 'Fill in the message',
+            trigger: 'textarea[name="description"]',
+        },
+        {
+            content: 'Send the form',
+            trigger: '.s_website_form_send',
+        },
+        {
+            content: 'Check form is submitted without errors',
+            trigger: '#wrap:has(h1:contains("Thank You!"))',
+        },
+    ]);
+
+    return {};
+});
+;
+
+/*****************************************************************
+*  Filepath: /website/static/tests/tours/website_navbar_menu.js  *
+*  Bundle: web.assets_tests                                      *
+*  Lines: 20                                                     *
+*****************************************************************/
+odoo.define("website.tour.website_navbar_menu", function (require) {
+"use strict";
+
+var tour = require("web_tour.tour");
+
+tour.register("website_navbar_menu", {
+    test: true,
+    url: "/",
+}, [
+    {
+        content: "Ensure menus are in DOM",
+        trigger: '#top_menu .nav-item a:contains("Test Tour Menu")',
+        run: function () {}, // it's a check
+    }, {
+        content: "Ensure menus loading is done (so they are actually visible)",
+        trigger: 'body:not(:has(.o_menu_loading))',
+        run: function () {}, // it's a check
+    }
+]);
+});
+;
+
+/******************************************************************
+*  Filepath: /website/static/tests/tours/website_page_options.js  *
+*  Bundle: web.assets_tests                                       *
+*  Lines: 63                                                      *
+******************************************************************/
+odoo.define('@website/../tests/tours/website_page_options', async function (require) {
+'use strict';
+let __exports = {};
+/** @odoo-module **/
+
+const tour = require('web_tour.tour');
+const wTourUtils = require('website.tour_utils');
+
+tour.register("website_page_options", {
+    test: true,
+    url: "/?enable_editor=1",
+}, [
+    wTourUtils.clickOnSnippet({id: 'o_header_standard', name: 'Header'}),
+    wTourUtils.changeOption('TopMenuVisibility', 'we-select:has([data-visibility]) we-toggler'),
+    wTourUtils.changeOption('TopMenuVisibility', 'we-button[data-visibility="transparent"]'),
+    // It's important to test saving right after changing that option only as
+    // this is why this test was made in the first place: the page was not
+    // marked as dirty when that option was the only one that was changed.
+    ...wTourUtils.clickOnSave(),
+    {
+        content: "Check that the header is transparent",
+        trigger: '#wrapwrap.o_header_overlay',
+        run: () => null, // it's a check
+    },
+    wTourUtils.clickOnEdit(),
+    wTourUtils.clickOnSnippet({id: 'o_header_standard', name: 'Header'}),
+    wTourUtils.changeOption('topMenuColor', 'we-select.o_we_so_color_palette'),
+    wTourUtils.changeOption('topMenuColor', 'button[data-color="black-50"]'),
+    ...wTourUtils.clickOnSave(),
+    {
+        content: "Check that the header is in black-50",
+        trigger: 'header#top.bg-black-50',
+        run: () => null, // it's a check
+    },
+    wTourUtils.clickOnEdit(),
+    wTourUtils.clickOnSnippet({id: 'o_header_standard', name: 'Header'}),
+    wTourUtils.changeOption('TopMenuVisibility', 'we-select:has([data-visibility]) we-toggler'),
+    wTourUtils.changeOption('TopMenuVisibility', 'we-button[data-visibility="hidden"]'),
+    ...wTourUtils.clickOnSave(),
+    {
+        content: "Check that the header is hidden",
+        trigger: '#wrapwrap:has(header#top.d-none.o_snippet_invisible)',
+        run: () => null, // it's a check
+    },
+    wTourUtils.clickOnEdit(),
+    {
+        content: "Click on 'header' in the invisible elements list",
+        extra_trigger: '#oe_snippets.o_loaded',
+        trigger: '.o_we_invisible_el_panel .o_we_invisible_entry',
+    },
+    wTourUtils.clickOnSnippet({id: 'o_footer', name: 'Footer'}),
+    wTourUtils.changeOption('HideFooter', 'we-button[data-name="hide_footer_page_opt"] we-checkbox'),
+    ...wTourUtils.clickOnSave(),
+    {
+        content: "Check that the footer is hidden and the header is visible",
+        trigger: '#wrapwrap:has(.o_footer.d-none.o_snippet_invisible)',
+        extra_trigger: '#wrapwrap header#top:not(.d-none)',
+        run: () => null, // it's a check
+    },
+]);
+
+return __exports;
+});
+;
+
+/************************************************************************
+*  Filepath: /website/static/tests/tours/website_snippets_menu_tabs.js  *
+*  Bundle: web.assets_tests                                             *
+*  Lines: 39                                                            *
+************************************************************************/
+odoo.define('@website/../tests/tours/website_snippets_menu_tabs', async function (require) {
+'use strict';
+let __exports = {};
+/** @odoo-module **/
+
+const tour = require('web_tour.tour');
+const wTourUtils = require('website.tour_utils');
+
+tour.register("website_snippets_menu_tabs", {
+    test: true,
+    url: "/?enable_editor=1",
+}, [
+    wTourUtils.goToTheme(),
+    {
+        content: "Click on the empty 'DRAG BUILDING BLOCKS HERE' area.",
+        extra_trigger: 'we-customizeblock-option.snippet-option-ThemeColors',
+        trigger: 'main > .oe_structure.oe_empty',
+        run: 'click',
+    },
+    wTourUtils.goToTheme(),
+    {
+        content: "Verify that the customize panel is not empty.",
+        trigger: '.o_we_customize_panel > we-customizeblock-options',
+        run: () => null, // it's a check
+    },
+    {
+        content: "Click on the style tab.",
+        trigger: '#snippets_menu .o_we_customize_snippet_btn',
+    },
+    wTourUtils.goToTheme(),
+    {
+        content: "Verify that the customize panel is not empty.",
+        trigger: '.o_we_customize_panel > we-customizeblock-options',
+        run: () => null, // it's a check
+    },
+]);
+
+return __exports;
+});
+;
+
+/*******************************************************************
+*  Filepath: /website/static/tests/tours/website_style_edition.js  *
+*  Bundle: web.assets_tests                                        *
+*  Lines: 34                                                       *
+*******************************************************************/
+odoo.define("website.tour.website_style_edition", function (require) {
+"use strict";
+
+const tour = require("web_tour.tour");
+
+const TARGET_FONT_SIZE = 30;
+
+tour.register("website_style_edition", {
+    test: true,
+    url: "/",
+}, [{
+    content: "Enter edit mode",
+    trigger: 'a[data-action=edit]',
+}, {
+    content: "Go to theme options",
+    trigger: '.o_we_customize_theme_btn',
+}, {
+    content: "Change font size",
+    trigger: '[data-variable="font-size-base"] input',
+    run: `text_blur ${TARGET_FONT_SIZE}`,
+}, {
+    content: "Save",
+    trigger: '[data-action="save"]',
+}, {
+    content: "Check the font size was properly adapted",
+    trigger: 'body:not(.editor_enable) #wrapwrap',
+    run: function (actions) {
+        const style = window.getComputedStyle(this.$anchor[0]);
+        if (style.fontSize !== `${TARGET_FONT_SIZE}px`) {
+            console.error(`Expected the font-size to be equal to ${TARGET_FONT_SIZE}px but found ${style.fontSize} instead`);
+        }
+    },
+}]);
+});
+;
+
+/*************************************************************
+*  Filepath: /website_crm/static/tests/tours/website_crm.js  *
+*  Bundle: web.assets_tests                                  *
+*  Lines: 84                                                 *
+*************************************************************/
+odoo.define('website_crm.tour', function(require) {
+    'use strict';
+
+    var tour = require('web_tour.tour');
+
+    tour.register('website_crm_pre_tour', {
+        test: true,
+        url: '/contactus?enable_editor=1',
+    }, [{
+        content: "Select contact form",
+        trigger: "#wrap.o_editable section.s_website_form",
+        extra_trigger: "body.editor_enable",
+    }, {
+        content: "Open action select",
+        trigger: "we-select:has(we-button:contains('Create an Opportunity')) we-toggler",
+        extra_trigger: "#oe_snippets .o_we_customize_snippet_btn.active",
+    }, {
+        content: "Select 'Create an Opportunity' as form action",
+        trigger: "we-select we-button:contains('Create an Opportunity')",
+    }, {
+        content: "Save the settings",
+        trigger: "button[data-action=save]",
+    }, {
+        content: "Ensure form model has changed and page reload is done after save",
+        trigger: "section.s_website_form form[data-model_name='crm.lead']",
+        extra_trigger: "a[data-action=edit]",
+    }]);
+
+    tour.register('website_crm_tour', {
+        test: true,
+        url: '/contactus',
+    }, [{
+        content: "Complete name",
+        trigger: "input[name=contact_name]",
+        run: "text John Smith",
+    }, {
+        content: "Complete phone number",
+        trigger: "input[name=phone]",
+        run: "text +32 485 118.218"
+    }, {
+        content: "Complete Email",
+        trigger: "input[name=email_from]",
+        run: "text john@smith.com"
+    }, {
+        content: "Complete Company",
+        trigger: "input[name=partner_name]",
+        run: "text Odoo S.A."
+    }, {
+        content: "Complete Subject",
+        trigger: "input[name=name]",
+        run: "text Useless message"
+    }, {
+        content: "Complete Subject",
+        trigger: "textarea[name=description]",
+        run: "text ### TOUR DATA ###"
+    }, {
+        content: "Send the form",
+        trigger: ".s_website_form_send"
+    }, {
+        content: "Check we were redirected to the success page",
+        trigger: "#wrap:has(h1:contains('Thank You!'))"
+    }]);
+
+    tour.register('website_crm_catch_logged_partner_info_tour', {
+        test: true,
+        url: '/contactus',
+    }, [{
+        content: "Complete Subject",
+        trigger: "input[name=name]",
+        run: "text Useless subject"
+    }, {
+        content: "Complete Subject",
+        trigger: "textarea[name=description]",
+        run: "text ### TOUR DATA PREFILL ###"
+    }, {
+        content: "Send the form",
+        trigger: ".s_website_form_send"
+    }, {
+        content: "Check we were redirected to the success page",
+        trigger: "#wrap:has(h1:contains('Thank You!'))"
+    }]);
+
+    return {};
+});
+;
+
+/***************************************************
+*  Filepath: /auth_totp/static/tests/totp_flow.js  *
+*  Bundle: web.assets_tests                        *
+*  Lines: 308                                      *
+***************************************************/
+odoo.define('auth_totp.tours', function(require) {
+"use strict";
+
+const tour = require('web_tour.tour');
+const ajax = require('web.ajax');
+
+function openRoot() {
+    return [{
+        content: "return to client root to avoid race condition",
+        trigger: 'body',
+        run() {
+            $('body').addClass('wait');
+            window.location = '/web';
+        }
+    }, {
+        content: "wait for client reload",
+        trigger: 'body:not(.wait)',
+        run() {}
+    }];
+}
+function openUserProfileAtSecurityTab() {
+    return [{
+        content: 'Open user account menu',
+        trigger: '.o_user_menu .oe_topbar_name',
+        run: 'click',
+    }, {
+        content: "Open preferences / profile screen",
+        trigger: '[data-menu=settings]',
+        run: 'click',
+    }, {
+        content: "Switch to security tab",
+        trigger: 'a[role=tab]:contains("Account Security")',
+        run: 'click',
+    }];
+}
+
+tour.register('totp_tour_setup', {
+    test: true,
+    url: '/web'
+}, [...openUserProfileAtSecurityTab(), {
+    content: "Open totp wizard",
+    trigger: 'button[name=action_totp_enable_wizard]',
+}, {
+    content: "Check that we have to enter enhanced security mode",
+    trigger: 'div:contains("enter your password")',
+    run: () => {},
+}, {
+    content: "Input password",
+    trigger: '[name=password]',
+    run: 'text demo', // FIXME: better way to do this?
+}, {
+    content: "Confirm",
+    trigger: "button:contains(Confirm Password)",
+}, {
+    content: "Check the wizard has opened",
+    trigger: 'li:contains("When requested to do so")',
+    run: () => {}
+}, {
+    content: "Get secret from collapsed div",
+    trigger: 'a:contains("Cannot scan it?")',
+    run(helpers) {
+        const $secret = this.$anchor.closest('div').find('span[name=secret]');
+        const $copyBtn = $secret.find('button');
+        $copyBtn.remove();
+        const secret = $secret.text();
+        ajax.jsonRpc('/totphook', 'call', {
+            secret
+        }).then((token) => {
+            helpers._text(helpers._get_action_values('input[name=code]'), token);
+            helpers._click(helpers._get_action_values('button.btn-primary:contains(Activate)'));
+            $('body').addClass('got-token')
+        });
+    }
+}, {
+    content: 'wait for rpc',
+    trigger: 'body.got-token',
+    run() {}
+},
+...openRoot(),
+...openUserProfileAtSecurityTab(),
+{
+    content: "Check that the button has changed",
+    trigger: 'button[name=action_totp_disable]',
+    run: () => {}
+}]);
+
+tour.register('totp_login_enabled', {
+    test: true,
+    url: '/'
+}, [{
+    content: "check that we're on the login page or go to it",
+    trigger: 'input#login, a:contains(Sign in)'
+}, {
+    content: "input login",
+    trigger: 'input#login',
+    run: 'text demo',
+}, {
+    content: 'input password',
+    trigger: 'input#password',
+    run: 'text demo',
+}, {
+    content: "click da button",
+    trigger: 'button:contains("Log in")',
+}, {
+    content: "expect totp screen",
+    trigger: 'label:contains(Authentication Code)',
+}, {
+    content: "input code",
+    trigger: 'input[name=totp_token]',
+    run(helpers) {
+        ajax.jsonRpc('/totphook', 'call', {}).then((token) => {
+            helpers._text(helpers._get_action_values(), token);
+            // FIXME: is there a way to put the button as its own step trigger without
+            //        the tour straight blowing through and not waiting for this?
+            helpers._click(helpers._get_action_values('button:contains("Login")'));
+        });
+    }
+}, {
+    content: "check we're logged in",
+    trigger: ".o_user_menu .oe_topbar_name",
+    run: () => {}
+}]);
+
+tour.register('totp_login_device', {
+    test: true,
+    url: '/'
+}, [{
+    content: "check that we're on the login page or go to it",
+    trigger: 'input#login, a:contains(Sign in)'
+}, {
+    content: "input login",
+    trigger: 'input#login',
+    run: 'text demo',
+}, {
+    content: 'input password',
+    trigger: 'input#password',
+    run: 'text demo',
+}, {
+    content: "click da button",
+    trigger: 'button:contains("Log in")',
+}, {
+    content: "expect totp screen",
+    trigger: 'label:contains(Authentication Code)',
+}, {
+    content: "check remember device box",
+    trigger: 'label[for=switch-remember]',
+}, {
+    content: "input code",
+    trigger: 'input[name=totp_token]',
+    run(helpers) {
+        ajax.jsonRpc('/totphook', 'call', {}).then((token) => {
+            helpers._text(helpers._get_action_values(), token);
+            // FIXME: is there a way to put the button as its own step trigger without
+            //        the tour straight blowing through and not waiting for this?
+            helpers._click(helpers._get_action_values('button:contains("Login")'));
+        });
+    }
+}, {
+    content: "check we're logged in",
+    trigger: ".o_user_menu .oe_topbar_name",
+    run: 'click',
+}, {
+    content: "click the Log out button",
+    trigger: '.dropdown-item[data-menu=logout]',
+}, {
+    content: "check that we're back on the login page or go to it",
+    trigger: 'input#login, a:contains(Log in)'
+}, {
+    content: "input login again",
+    trigger: 'input#login',
+    run: 'text demo',
+}, {
+    content: 'input password again',
+    trigger: 'input#password',
+    run: 'text demo',
+}, {
+    content: "click da button again",
+    trigger: 'button:contains("Log in")',
+},  {
+    content: "check we're logged in without 2FA",
+    trigger: ".o_user_menu .oe_topbar_name",
+    run: () => {}
+},
+// now go and disable two-factor authentication would be annoying to do in a separate tour
+// because we'd need to login & totp again as HttpCase.authenticate can't
+// succeed w/ totp enabled
+...openUserProfileAtSecurityTab(),
+{
+    content: "Open totp wizard",
+    trigger: 'button[name=action_totp_disable]',
+}, {
+    content: "Check that we have to enter enhanced security mode",
+    trigger: 'div:contains("enter your password")',
+    run: () => {},
+}, {
+    content: "Input password",
+    trigger: '[name=password]',
+    run: 'text demo', // FIXME: better way to do this?
+}, {
+    content: "Confirm",
+    trigger: "button:contains(Confirm Password)",
+},
+...openRoot(),
+...openUserProfileAtSecurityTab(),
+{
+    content: "Check that the button has changed",
+    trigger: 'button[name=action_totp_enable_wizard]',
+    run: () => {}
+}]);
+
+tour.register('totp_login_disabled', {
+    test: true,
+    url: '/'
+}, [{
+    content: "check that we're on the login page or go to it",
+    trigger: 'input#login, a:contains(Sign in)'
+}, {
+    content: "input login",
+    trigger: 'input#login',
+    run: 'text demo',
+}, {
+    content: 'input password',
+    trigger: 'input#password',
+    run: 'text demo',
+}, {
+    content: "click da button",
+    trigger: 'button:contains("Log in")',
+},
+// normally we'd end the tour here as it's all we care about but there are a
+// bunch of ongoing queries from the loading of the web client which cause
+// issues, so go and open the preferences / profile screen to make sure
+// everything settles down
+...openUserProfileAtSecurityTab(),
+]);
+
+const columns = {};
+tour.register('totp_admin_disables', {
+    test: true,
+    url: '/web'
+}, [tour.stepUtils.showAppsMenuItem(), {
+    content: 'Go to settings',
+    trigger: '[data-menu-xmlid="base.menu_administration"]'
+}, {
+    content: 'Wait for page',
+    trigger: '.o_menu_brand:contains("Settings")',
+    run: () => {}
+}, {
+    content: "Open Users menu",
+    trigger: '[data-menu-xmlid="base.menu_users"]'
+}, {
+    content: "Open Users view",
+    trigger: '[data-menu-xmlid="base.menu_action_res_users"]',
+    run: function (helpers) {
+        // funny story: the users view we're trying to reach, sometimes we're
+        // already there, but if we re-click the next step executes before the
+        // action has the time to re-load, the one after that doesn't, and our
+        // selection get discarded by the action reloading, so here try to
+        // see if we're already on the users action through the breadcrumb and
+        // just close the menu if so
+        const $crumb = $('.breadcrumb');
+        if ($crumb.text().indexOf('Users') === -1) {
+            // on general settings page, click menu
+            helpers.click();
+        } else {
+            // else close menu
+            helpers.click($('[data-menu-xmlid="base.menu_users"]'));
+        }
+    }
+}, {
+    content: "Find Demo User",
+    trigger: 'td.o_data_cell:contains("demo")',
+    run: function (helpers) {
+        const $titles = this.$anchor.closest('table').find('tr:first th');
+        for (let i=0; i<$titles.length; ++i) {
+            columns[$titles[i].getAttribute('data-name')] = i;
+        }
+        const $row = this.$anchor.closest('tr');
+        const sel = $row.find('.o_list_record_selector input[type=checkbox]');
+        helpers.click(sel);
+    }
+}, {
+    content: "Open Actions menu",
+    trigger: 'button.dropdown-toggle:contains("Action")'
+}, {
+    content: "Select totp remover",
+    trigger: 'a.dropdown-item:contains(Disable two-factor authentication)'
+}, { // enhanced security yo
+    content: "Check that we have to enter enhanced security mode",
+trigger: 'div:contains("enter your password")',
+    run: () => {},
+}, {
+    content: "Input password",
+    trigger: '[name=password]',
+    run: 'text admin', // FIXME: better way to do this?
+}, {
+    content: "Confirm",
+    trigger: "button:contains(Confirm Password)",
+}, {
+    content: "open the user's form",
+    trigger: "td.o_data_cell:contains(demo)",
+}, {
+    content: "go to Account security Tab",
+    trigger: "a.nav-link:contains(Account Security)",
+}, {
+    content: "check that demo user has been de-totp'd",
+    trigger: "button[name=action_totp_enable_wizard]",
+}])
+});
+;
+
+/********************************************************
+*  Filepath: /auth_totp_mail/static/tests/totp_flow.js  *
+*  Bundle: web.assets_tests                             *
+*  Lines: 92                                            *
+********************************************************/
+odoo.define('auth_totp_mail.tours', function(require) {
+"use strict";
+
+const tour = require('web_tour.tour');
+
+function openUserProfileAtSecurityTab() {
+    return [{
+        content: 'Open user account menu',
+        trigger: '.o_user_menu .oe_topbar_name',
+        run: 'click',
+    }, {
+        content: "Open preferences / profile screen",
+        trigger: '[data-menu=settings]',
+        run: 'click',
+    }, {
+        content: "Switch to security tab",
+        trigger: 'a[role=tab]:contains("Account Security")',
+        run: 'click',
+    }];
+}
+
+function openAccountSettingsTab() {
+    return [{
+        content: 'Go to settings',
+        trigger: '[data-menu-xmlid="base.menu_administration"]'
+    }, {
+        content: 'Wait for page',
+        trigger: '.o_menu_brand:contains("Settings")',
+        run: () => {}
+    }, {
+        content: "Open Users menu",
+        trigger: '[data-menu-xmlid="base.menu_users"]'
+    }, {
+        content: "Open Users view",
+        trigger: '[data-menu-xmlid="base.menu_action_res_users"]',
+        run: function (helpers) {
+            // funny story: the users view we're trying to reach, sometimes we're
+            // already there, but if we re-click the next step executes before the
+            // action has the time to re-load, the one after that doesn't, and our
+            // selection get discarded by the action reloading, so here try to
+            // see if we're already on the users action through the breadcrumb and
+            // just close the menu if so
+            const $crumb = $('.breadcrumb');
+            if ($crumb.text().indexOf('Users') === -1) {
+                // on general settings page, click menu
+                helpers.click();
+            } else {
+                // else close menu
+                helpers.click($('[data-menu-xmlid="base.menu_users"]'));
+            }
+        }
+    }];
+}
+
+tour.register('totp_admin_self_invite', {
+    test: true,
+    url: '/web'
+}, [tour.stepUtils.showAppsMenuItem(), ...openAccountSettingsTab(), {
+    content: "open the user's form",
+    trigger: "td.o_data_cell:contains(admin)",
+}, {
+    content: "go to Account security Tab",
+    trigger: "a.nav-link:contains(Account Security)",
+}, {
+    content: "check that user cannot invite himself to use 2FA.",
+    trigger: "body",
+    run: function () {
+        var $inviteBtn = $('button:contains(Invite to use 2FA)');
+        if ($inviteBtn.hasClass('o_invisible_modifier')) {
+            $('body').addClass('CannotInviteYourself');
+        }
+    }
+}, {
+    content: "check that user cannot invite themself.",
+    trigger: "body.CannotInviteYourself"
+}]);
+
+tour.register('totp_admin_invite', {
+    test: true,
+    url: '/web'
+}, [tour.stepUtils.showAppsMenuItem(), ...openAccountSettingsTab(), {
+    content: "open the user's form",
+    trigger: "td.o_data_cell:contains(demo)",
+}, {
+    content: "go to Account security Tab",
+    trigger: "a.nav-link:contains(Account Security)",
+}, {
+    content: "check that demo user can be invited to use 2FA.",
+    trigger: "button:contains(Invite to use 2FA)",
+}]);
+
+});;
+
+/************************************************************
+*  Filepath: /auth_totp_portal/static/tests/totp_portal.js  *
+*  Bundle: web.assets_tests                                 *
+*  Lines: 124                                               *
+************************************************************/
+odoo.define('auth_totp_portal.tours', function(require) {
+"use strict";
+
+const tour = require('web_tour.tour');
+const ajax = require('web.ajax');
+
+tour.register('totportal_tour_setup', {
+    test: true,
+    url: '/my/security'
+}, [{
+    content: "Open totp wizard",
+    trigger: 'button#auth_totp_portal_enable',
+}, {
+    content: "Check that we have to enter enhanced security mode",
+    trigger: 'div:contains("enter your password")',
+    run: () => {},
+}, {
+    content: "Input password",
+    trigger: '[name=password]',
+    run: 'text portal', // FIXME: better way to do this?
+}, {
+    content: "Confirm",
+    trigger: "button:contains(Confirm Password)",
+}, {
+    content: "Check the wizard has opened",
+    trigger: 'li:contains("scan the barcode below")',
+    run: () => {}
+}, {
+    content: "Get secret from collapsed div",
+    trigger: 'a:contains("Cannot scan it?")',
+    run: async function(helpers) {
+        const secret = this.$anchor.closest('div').find('span[name="secret"]').text();
+        const token = await ajax.jsonRpc('/totphook', 'call', {
+            secret
+        });
+        helpers._text(helpers._get_action_values('input[name=code]'), token);
+        helpers._click(helpers._get_action_values('button.btn-primary:contains(Activate)'));
+    }
+}, {
+    content: "Check that the button has changed",
+    trigger: 'button:contains(Disable two-factor authentication)',
+    run: () => {}
+}]);
+
+tour.register('totportal_login_enabled', {
+    test: true,
+    url: '/'
+}, [{
+    content: "check that we're on the login page or go to it",
+    trigger: 'input#login, a:contains(Sign in)'
+}, {
+    content: "input login",
+    trigger: 'input#login',
+    run: 'text portal',
+}, {
+    content: 'input password',
+    trigger: 'input#password',
+    run: 'text portal',
+}, {
+    content: "click da button",
+    trigger: 'button:contains("Log in")',
+}, {
+    content: "expect totp screen",
+    trigger: 'label:contains(Authentication Code)',
+}, {
+    content: "input code",
+    trigger: 'input[name=totp_token]',
+    run: async function (helpers) {
+        const token = await ajax.jsonRpc('/totphook', 'call', {});
+        helpers._text(helpers._get_action_values(), token);
+        // FIXME: is there a way to put the button as its own step trigger without
+        //        the tour straight blowing through and not waiting for this?
+        helpers._click(helpers._get_action_values('button:contains("Login")'));
+    }
+}, {
+    content: "check we're logged in",
+    trigger: "h3:contains(Documents)",
+    run: () => {}
+}, {
+    content: "go back to security",
+    trigger: "a:contains(Security)",
+},{
+    content: "Open totp wizard",
+    trigger: 'button#auth_totp_portal_disable',
+}, {
+    content: "Check that we have to enter enhanced security mode",
+    trigger: 'div:contains("enter your password")',
+    run: () => {},
+}, {
+    content: "Input password",
+    trigger: '[name=password]',
+    run: 'text portal', // FIXME: better way to do this?
+}, {
+    content: "Confirm",
+    trigger: "button:contains(Confirm Password)",
+}, {
+    content: "Check that the button has changed",
+    trigger: 'button:contains(Enable two-factor authentication)',
+    run: () => {}
+}]);
+
+tour.register('totportal_login_disabled', {
+    test: true,
+    url: '/'
+}, [{
+    content: "check that we're on the login page or go to it",
+    trigger: 'input#login, a:contains(Sign in)'
+}, {
+    content: "input login",
+    trigger: 'input#login',
+    run: 'text portal',
+}, {
+    content: 'input password',
+    trigger: 'input#password',
+    run: 'text portal',
+}, {
+    content: "click da button",
+    trigger: 'button:contains("Log in")',
+}, {
+    content: "check we're logged in",
+    trigger: "h3:contains(Documents)",
+    run: () => {}
+}]);
+});
+
+//# sourceMappingURL=/web/assets/907-cb8d947/web.assets_tests.js.map

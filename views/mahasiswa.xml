@@ -1,0 +1,99 @@
+<?xml version='1.0' encoding='utf-8'?>
+<odoo>
+    <data>
+    <!-- rifcha.mahasiswa tree view -->
+    <record id="rifcha_mahasiswa_view_tree" model="ir.ui.view">
+        <field name="name">rifcha.mahasiswa.view.tree</field>
+        <field name="model">rifcha.mahasiswa</field>
+        <field name="arch" type="xml">
+            <tree>
+                <!-- Add your fields here -->
+                <field name="name"/>     
+                <field name="nim"/>
+                <field name="alamat"/>
+                <field name="telp"/> 
+                <field name="agama_id"/> 
+            </tree>
+        </field>
+    </record>
+        
+<!-- rifcha.mahasiswa form view -->
+
+<!-- rifcha.mahasiswa search view -->
+<record id="rifcha_mahasiswa_view_search" model="ir.ui.view">
+    <field name="name">rifcha.mahasiswa.view.search</field>
+    <field name="model">rifcha.mahasiswa</field>
+    <field name="arch" type="xml">
+        <search string="Search Description">
+            <!-- Add your fields here -->
+                <field name="name"/>    
+                <field name="nim"/>
+                <field name="alamat"/>
+                <field name="telp"/> 
+                <field name="agama_id"/>    
+        </search>
+    </field>
+</record>
+
+<record id="rifcha_mahasiswa_view_form" model="ir.ui.view">
+    <field name="name">rifcha.mahasiswa.view.form</field>
+    <field name="model">rifcha.mahasiswa</field>
+    <field name="arch" type="xml">
+        <form string="">
+            <sheet>
+                <notebook>
+                    <page string="Mahasiswa" name="name">
+                        <group>
+                            <field name="name" placeholder="Nama Mahasiswa"/>            
+                            <field name="nim" placeholder="NIM"/>
+                            <field name="alamat" placeholder="Alamat"/>
+                            <field name="telp" placeholder="Nomor Telfon"/> 
+                            <field name="agama_id" placeholder="Agama"/>  
+                            <field name="image" widget='image' class="oe_avatar"/>
+                        </group>
+                    </page>
+                    <page string="Orang tua" name="name">
+                        <group>
+                            <field name="ayah" placeholder="Nama Ayah"/>            
+                            <field name="ibu" placeholder="Nama Ibu"/>
+                            <field name="pekerjaanayah" placeholder="Pekerjaan Ayah"/>
+                            <field name="pekerjaanibu" placeholder="Pekerjaan Ibu"/> 
+                        </group>
+                    </page>
+                </notebook>
+            </sheet>
+        </form>
+    </field>
+</record>
+
+<!-- calendar if a date field exists -->
+        <!-- graph -->
+        <record id="view_rifcha_mahasiswa_graph" model="ir.ui.view">
+            <field name="name">rifcha_mahasiswa</field>
+            <field name="model">rifcha.mahasiswa</field>
+            <field name="arch" type="xml">
+                <graph string="Data Aspek" type="bar">
+                </graph>
+            </field>
+        </record>
+
+        <!-- action window -->
+        <record id="action_rifcha_mahasiswa" model="ir.actions.act_window">
+            <field name="name">Data mahasiswa </field>
+            <field name="type">ir.actions.act_window</field>
+            <field name="res_model">rifcha.mahasiswa</field>
+            <field name="view_mode">kanban,tree,form</field>
+            <field name="context">{"search_default_fieldname":1}</field>
+            <field name="help" type="html">
+                <p class="oe_view_nocontent_create">
+                Click to add a new Mahasiswa
+                </p><p>
+                Click the Create button to add a new Mahasiswa
+                </p>
+            </field>
+        </record>
+
+        <!-- This Menu Item must have a parent and an action -->
+        <menuitem id="menu_rifcha_mahasiswa" name="Mahasiswa" parent="vokasi_master" action="action_rifcha_mahasiswa" sequence="20"/> 
+    </data>
+</odoo>

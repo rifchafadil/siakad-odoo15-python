@@ -1,0 +1,78 @@
+<?xml version='1.0' encoding='utf-8'?>
+<odoo>
+    <data>
+    <!-- rifcha.hari tree view -->
+    <record id="rifcha_hari_view_tree" model="ir.ui.view">
+        <field name="name">rifcha.hari.view.tree</field>
+        <field name="model">rifcha.hari</field>
+        <field name="arch" type="xml">
+            <tree>
+                <!-- Add your fields here -->
+                <field name="name"/>                
+            </tree>
+        </field>
+    </record>
+        
+<!-- rifcha.hari form view -->
+
+<!-- rifcha.hari search view -->
+<record id="rifcha_hari_view_search" model="ir.ui.view">
+    <field name="name">rifcha.hari.view.search</field>
+    <field name="model">rifcha.hari</field>
+    <field name="arch" type="xml">
+        <search string="Search Description">
+            <!-- Add your fields here -->
+            <field name="name"/>
+        </search>
+    </field>
+</record>
+
+<record id="rifcha_hari_view_form" model="ir.ui.view">
+    <field name="name">rifcha.hari.view.form</field>
+    <field name="model">rifcha.hari</field>
+    <field name="arch" type="xml">
+        <form string="">
+            <sheet>
+                    <notebook>
+                    <page string="Nama hari" name="name">
+                        <group>
+                            <field name="name"/>
+                        </group>
+                    </page>
+                </notebook>
+            </sheet>
+        </form>
+    </field>
+</record>
+
+<!-- calendar if a date field exists -->
+        <!-- graph -->
+        <record id="view_rifcha_hari_graph" model="ir.ui.view">
+            <field name="name">rifcha_hari</field>
+            <field name="model">rifcha.hari</field>
+            <field name="arch" type="xml">
+                <graph string="Data Aspek" type="bar">
+                </graph>
+            </field>
+        </record>
+
+        <!-- action window -->
+        <record id="action_rifcha_hari" model="ir.actions.act_window">
+            <field name="name">Data hari </field>
+            <field name="type">ir.actions.act_window</field>
+            <field name="res_model">rifcha.hari</field>
+            <field name="view_mode">kanban,tree,form</field>
+            <field name="context">{"search_default_fieldname":1}</field>
+            <field name="help" type="html">
+                <p class="oe_view_nocontent_create">
+                Click to add a new hari
+                </p><p>
+                Click the Create button to add a new hari
+                </p>
+            </field>
+        </record>
+
+        <!-- This Menu Item must have a parent and an action -->
+        <menuitem id="menu_rifcha_hari" name="Hari" parent="vokasi_master" action="action_rifcha_hari" sequence="70"/> 
+    </data>
+</odoo>

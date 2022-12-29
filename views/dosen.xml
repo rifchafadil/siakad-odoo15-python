@@ -1,0 +1,149 @@
+<?xml version='1.0' encoding='utf-8'?>
+<odoo>
+    <data>
+    <!-- rifcha.dosen tree view -->
+    <record id="rifcha_dosen_view_tree" model="ir.ui.view">
+        <field name="name">rifcha.dosen.view.tree</field>
+        <field name="model">rifcha.dosen</field>
+        <field name="arch" type="xml">
+            <tree>
+                <!-- Add your fields here -->
+                        <field name="name"/>
+                        <field name="nip"/>     
+                        <field name="matakuliah"/>
+                        <field name="fakultas"/>     
+                        <field name="prodi"/> 
+            </tree>
+        </field>
+    </record>
+        
+<!-- rifcha.dosen form view -->
+
+<!-- rifcha.dosen search view -->
+<record id="rifcha_dosen_view_search" model="ir.ui.view">
+    <field name="name">rifcha.dosen.view.search</field>
+    <field name="model">rifcha.dosen</field>
+    <field name="arch" type="xml">
+        <search string="Search Description">
+            <!-- Add your fields here -->
+                        <field name="name"/>
+                        <field name="nip"/>     
+                        <field name="matakuliah"/>
+                        <field name="fakultas"/>     
+                        <field name="prodi"/>      
+        </search>
+    </field>
+</record>
+
+<record id="rifcha_dosen_view_form" model="ir.ui.view">
+    <field name="name">rifcha.dosen.view.form</field>
+    <field name="model">rifcha.dosen</field>
+    <field name="arch" type="xml">
+        <form string="">
+            <sheet>
+                    <group>
+                            <field name="image" widget='image' class="oe_avatar"/>
+                            <field name="name"/>
+                            <field name="nip"/>      
+                            <field name="matakuliah" required="1" widget="many2many_tags" options="{'no_create': True}"/>
+                            <field name="fakultas"/>     
+                            <field name="prodi"/>  
+                    </group>
+                    <group>
+                        <group string="Riwayat Pendidikan">                          
+                            <field name="sd"/>
+                            <field name="smp"/>
+                            <field name="sma"/>                               
+                            <field name="pt"/>
+                        </group>
+                        <group string="Kontak">
+                            <field name="email"/>
+                            <field name="telp"/>
+                            <field name="alamat"/>                        
+                        </group>
+                    </group>
+            </sheet>
+        </form>
+    </field>
+</record>
+
+<!-- calendar if a date field exists -->
+        <!-- graph -->
+        <record id="view_rifcha_dosen_graph" model="ir.ui.view">
+            <field name="name">rifcha_dosen</field>
+            <field name="model">rifcha.dosen</field>
+            <field name="arch" type="xml">
+                <graph string="Data Aspek" type="bar">
+                </graph>
+            </field>
+        </record>
+
+        <!-- action window -->
+    <record id="view_rifcha_dosen_kanban" model="ir.ui.view">
+            <field name="name">rifcha_dosen</field>
+            <field name="model">rifcha.dosen</field>
+            <field name="arch" type="xml">                
+                <kanban default_order="id asc">                    
+                    <field name="id"/>
+                    <field name="name"/>
+                    <field name="nip"/>
+                    <field name="email"/>                    
+                    <templates>
+                        <t t-name="kanban-box">            
+                            <div t-attf-class="oe_kanban_global_click">                                                                                                                                
+                                <table class="oe_kanban_table">
+                                    <tr width="300">
+                                        <td valign="center" width="70" align="left">
+                                            <div class="o_kanban_image">
+                                                <img height="70" width="80" t-att-src="kanban_image('rifcha.dosen', 'image', record.id.raw_value)" alt="image"/>
+                                            </div>
+                                        </td>
+                                        <td valign="top" align="left" style="padding-left:10px;">
+                                            <div class="oe_kanban_details">
+                                                <ul>
+                                                    <li>
+                                                        <h4><field name="name"/></h4>
+                                                    </li>
+                                                    <li>
+                                                        <b>NIP:</b>
+                                                        <field name="nip"/>
+                                                    </li>
+                                                    <li>
+                                                        <b>Email:</b>
+                                                        <field name="email"/>
+                                                    </li>
+                                                    <li>
+                                                        <b>Nomor Telepon:</b>
+                                                        <field name="telp"/>
+                                                    </li>
+                                                </ul>  
+                                            </div>
+                                        </td>
+                                    </tr>
+                                </table>
+                            </div>    
+                        </t>
+                    </templates>
+                </kanban>
+            </field>
+        </record>
+
+        <record id="action_rifcha_dosen" model="ir.actions.act_window">
+            <field name="name">Data dosen </field>
+            <field name="type">ir.actions.act_window</field>
+            <field name="res_model">rifcha.dosen</field>
+            <field name="view_mode">kanban,tree,form</field>
+            <field name="context">{"search_default_fieldname":1}</field>
+            <field name="help" type="html">
+                <p class="oe_view_nocontent_create">
+                Click to add a new dosen
+                </p><p>
+                Click the Create button to add a new dosen
+                </p>
+            </field>
+        </record>
+
+        <!-- This Menu Item must have a parent and an action -->
+        <menuitem id="menu_rifcha_dosen" name="Dosen" parent="vokasi_master" action="action_rifcha_dosen" sequence="110"/> 
+    </data>
+</odoo>

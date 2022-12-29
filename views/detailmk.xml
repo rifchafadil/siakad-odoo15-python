@@ -1,0 +1,155 @@
+<?xml version='1.0' encoding='utf-8'?>
+<odoo>
+    <data>
+    <!-- rifcha.detailmk tree view -->
+    <record id="rifcha_detailmk_view_tree" model="ir.ui.view">
+        <field name="name">rifcha.detailmk.view.tree</field>
+        <field name="model">rifcha.detailmk</field>
+        <field name="arch" type="xml">
+            <tree>
+                <!-- Add your fields here -->
+                            <field name="nim"/>     
+                            <field name="kodeMK"/>
+                            <field name="name"/>
+                            <field name="uts"/> 
+                            <field name="uas"/>
+                            <field name="tugas"/>
+                            <field name="quiz"/> 
+            </tree>
+        </field>
+    </record>
+        
+<!-- rifcha.detailmk form view -->
+
+<!-- rifcha.detailmk search view -->
+<record id="rifcha_detailmk_view_search" model="ir.ui.view">
+    <field name="name">rifcha.detailmk.view.search</field>
+    <field name="model">rifcha.detailmk</field>
+    <field name="arch" type="xml">
+        <search string="Search Description">
+            <!-- Add your fields here -->
+                            <field name="nim"/>     
+                            <field name="kodeMK"/>
+                            <field name="name"/>
+                            <field name="uts"/> 
+                            <field name="uas"/>
+                            <field name="tugas"/>
+                            <field name="quiz"/>     
+        </search>
+    </field>
+</record>
+
+<record id="rifcha_detailmk_view_form" model="ir.ui.view">
+    <field name="name">rifcha.detailmk.view.form</field>
+    <field name="model">rifcha.detailmk</field>
+    <field name="arch" type="xml">
+        <form string="">
+            <sheet>
+                <notebook>
+                    <page string="Nama detailmk" name="name">
+                        <group>
+                            <field name="nim"/>     
+                            <field name="kodeMK"/>
+                            <field name="name"/>
+                            <field name="uts"/> 
+                            <field name="uas"/>
+                            <field name="tugas"/>
+                            <field name="quiz"/>
+                            <field name="total"/> 
+                        </group>
+                    </page>
+                </notebook>
+            </sheet>
+        </form>
+    </field>
+</record>
+
+<!-- calendar if a date field exists -->
+        <!-- graph -->
+        <record id="view_rifcha_detailmk_graph" model="ir.ui.view">
+            <field name="name">rifcha_detailmk</field>
+            <field name="model">rifcha.detailmk</field>
+            <field name="arch" type="xml">
+                <graph string="Data Aspek" type="bar">
+                </graph>
+            </field>
+        </record>
+
+                <record id="view_rifcha_detailmk_kanban" model="ir.ui.view">
+            <field name="name">rifcha_detailmk</field>
+            <field name="model">rifcha.detailmk</field>
+            <field name="arch" type="xml">
+                <kanban default_order="id asc">
+                            <field name="nim"/>     
+                            <field name="kodeMK"/>
+                            <field name="name"/>
+                            <field name="uts"/> 
+                            <field name="uas"/>
+                            <field name="tugas"/>
+                            <field name="quiz"/> 
+                    <templates>
+                        <t t-name="kanban-box">
+                            <div t-attf-class="oe_kanban_global_click">
+                                <div class="oe_kanban_details">
+                                    <ul>
+                                        <li>
+                                            <b>Nama Mahasiswa : </b>
+                                            <field name="nim"/>
+                                        </li>
+                                        <li>
+                                            <b>Nama MataKuliah : </b>
+                                            <field name="kodeMK"/>
+                                        </li>
+                                        <li>
+                                            <b>Semester : </b>
+                                            <field name="name"/>  
+                                        </li>
+                                        <li>
+                                            <b>Nilai UTS : </b>
+                                            <field name="uts"/>  
+                                        </li>
+                                        <li>
+                                            <b>Nilai UAS : </b>
+                                            <field name="uas"/>  
+                                        </li>
+                                        <li>
+                                            <b>Nilai Tugas : </b>
+                                            <field name="tugas"/>  
+                                        </li>
+                                        <li>
+                                            <b>Nilai Quiz : </b>
+                                            <field name="quiz"/>  
+                                        </li>
+                                        <li>
+                                            <b>Total : </b>
+                                            <field name="total"/>  
+                                        </li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </t>
+                    </templates>   
+                </kanban>
+            </field>
+        </record>
+
+        <!-- action window -->
+        <record id="action_rifcha_detailmk" model="ir.actions.act_window">
+            <field name="name">Data detailmk </field>
+            <field name="type">ir.actions.act_window</field>
+            <field name="res_model">rifcha.detailmk</field>
+            <field name="view_mode">kanban,tree,form</field>
+            <field name="context">{"search_default_fieldname":1}</field>
+            <field name="help" type="html">
+                <p class="oe_view_nocontent_create">
+                Click to add a new detailmk
+                </p><p>
+                Click the Create button to add a new detailmk
+                </p>
+            </field>
+        </record>
+
+        <!-- This Menu Item must have a parent and an action -->
+        <menuitem id="menu_rifcha_detailmk" name="Detail Mata Kuliah" parent="vokasi_akademik" action="action_rifcha_detailmk" sequence="100"/> 
+    </data>
+</odoo>
